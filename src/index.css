@@ -1,0 +1,162 @@
+/*
+ * Deliberately small and deliberately not `ago-console`'s design system.
+ *
+ * `11-05` gave AGO Chat's console its colour and type tokens from `ago-landing`, so that the product
+ * and its marketing page look like one thing. AGO Calendar has no landing page yet and no visual
+ * identity to inherit, and inventing one here would be inventing it in the wrong item - so this is
+ * system fonts and enough structure to be usable, with the decision left where it belongs.
+ */
+
+:root {
+  --ink: #14181f;
+  --muted: #5a6472;
+  --line: #d9dee6;
+  --accent: #2f6fed;
+  --danger: #b4232a;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: #fbfcfd;
+}
+
+.shell > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.shell > header h1 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+nav a.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.identity {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+main {
+  padding: 1.5rem;
+  max-width: 60rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  max-width: 26rem;
+  margin-top: 0.75rem;
+}
+
+label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.4rem;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+tr.overdue {
+  background: #fff3f3;
+}
+
+pre {
+  background: #f2f4f7;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+}

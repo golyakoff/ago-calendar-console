@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Local, per-developer configuration. None of the values in it are secrets (the OIDC client id is
+# public by design), but the file names one machine's ports and is not the deployment's.
+.env.local

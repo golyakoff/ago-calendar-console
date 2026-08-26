@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # The build needs the three VITE_* values `src/config.ts` requires, and this repository has no
+      # committed `.env.production` yet because AGO Calendar has no deployment - see the Dockerfile
+      # for why inventing one would be worse than not having one. These placeholders exist to prove
+      # the bundle *compiles*, and they are `.invalid` on purpose so that nothing can mistake a CI
+      # artifact for something deployable.
+      #
+      # **When a real deployment exists, delete these and commit `.env.production` instead.**
+      # `adr/0051` is explicit that a frontend image must take no environment input from its build
+      # command: leaving these here once the file exists would let CI build a bundle pointed
+      # somewhere other than the commit says.
+      - name: Build
+        env:
+          VITE_API_BASE_URL: https://calendar.invalid
+          VITE_KEYCLOAK_AUTHORITY: https://auth.invalid/realms/ago-chat
+          VITE_KEYCLOAK_CLIENT_ID: ago-calendar-console
+        run: npm run build
+
+  # There is deliberately no publish-images job yet. `ago-console` has one because something deploys
+  # its image; nothing deploys this one, and a job that pushed an image nobody pulls would be
+  # ceremony that looks like infrastructure. It arrives with the deployment, modelled on
+  # `ago-console`'s (`adr/0047`/`adr/0051`).
