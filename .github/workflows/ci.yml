@@ -19,6 +19,11 @@ jobs:
       - name: Install
         run: npm ci
 
+      # 17-04: same policy as ago-console's and ago-widget's own CI - Critical/High fails the build,
+      # Moderate/Low is reported but does not (docs/runbooks/vulnerability-response.md, ago-root).
+      - name: Vulnerability check (npm audit)
+        run: npm audit --audit-level=high
+
       - name: Typecheck
         run: npm run typecheck
 
