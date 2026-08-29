@@ -14,7 +14,7 @@
 # developer has, and `docker build` produces one that fails at runtime with `config.ts`'s own
 # "Missing required environment variable" - loudly, which is the correct behaviour for a bundle
 # nobody has told where to point.
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
