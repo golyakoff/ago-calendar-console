@@ -21,7 +21,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginx:1.27-alpine-slim
+FROM nginx:1.31-alpine-slim
 # The commit this image is built from. Defaults to "unknown" rather than failing: a local
 # `docker build` to look at the output is legitimate, and it should say so out loud rather than
 # claim a commit.
