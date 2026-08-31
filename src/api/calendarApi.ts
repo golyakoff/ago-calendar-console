@@ -73,6 +73,44 @@ export interface PendingBooking {
    * means the confirmation sweep is not doing its job, and the customer has already been told they
    * are booked. */
   isOverdue: boolean;
+  /**
+   * `20-12`. `null` means exactly one thing: this operator does not hold `customer:read` in this
+   * tenant, so the server never joined to `customers` at all - never "no phone recorded", which
+   * cannot happen (`Ago.Calendar.Domain.Customer.Phone` is not nullable). `QueuePage` renders that
+   * one state as "hidden, not absent" rather than as an empty cell indistinguishable from either
+   * reading.
+   */
+  phone: string | null;
+}
+
+export interface Role {
+  roleId: string;
+  name: string;
+  permissions: string[];
+}
+
+export interface OperatorInfo {
+  operatorId: string;
+  displayName: string;
+  /** `20-12`: the tenant's own account owner - the first operator ever provisioned for it, always
+   * holding a role that grants `customer:read` (`Ago.Calendar.Domain.Operator.IsAccountOwner`'s own
+   * invariant). The console never offers to revoke that role from this operator - not because the
+   * button is hidden, but because the server refuses it either way; hiding it here just saves an
+   * operator a round trip that would only ever fail. */
+  isAccountOwner: boolean;
+  roleIds: string[];
+}
+
+export interface Contact {
+  customerId: string;
+  phone: string;
+  displayName: string | null;
+  notes: string | null;
+  /** Always zero today - nothing in this product writes it yet (`20-04`'s own retro note). Shown
+   * honestly rather than hidden, so the report does not imply a feature that does not exist. */
+  noShowCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
 }
 
 /**
@@ -170,6 +208,41 @@ export function editDayBoundary(
   body: { calendarId: string; workerId: string; localDate: string; opensAt: string; closesAt: string },
 ): Promise<void> {
   return requestVoid(token, "POST", "/availability/day-boundary", body);
+}
+
+export function getRoles(token: string, signal?: AbortSignal): Promise<Role[]> {
+  return request<Role[]>(token, "GET", "/roles", undefined, signal);
+}
+
+export function createRole(
+  token: string,
+  body: { name: string; permissions: string[] },
+): Promise<{ roleId: string }> {
+  return request<{ roleId: string }>(token, "POST", "/roles", body);
+}
+
+export function getOperators(token: string, signal?: AbortSignal): Promise<OperatorInfo[]> {
+  return request<OperatorInfo[]>(token, "GET", "/operators", undefined, signal);
+}
+
+export function grantOperatorRole(token: string, operatorId: string, roleId: string): Promise<void> {
+  return requestVoid(
+    token,
+    "POST",
+    `/operators/${encodeURIComponent(operatorId)}/roles/${encodeURIComponent(roleId)}`,
+  );
+}
+
+export function revokeOperatorRole(token: string, operatorId: string, roleId: string): Promise<void> {
+  return requestVoid(
+    token,
+    "DELETE",
+    `/operators/${encodeURIComponent(operatorId)}/roles/${encodeURIComponent(roleId)}`,
+  );
+}
+
+export function getContacts(token: string, signal?: AbortSignal): Promise<Contact[]> {
+  return request<Contact[]>(token, "GET", "/contacts", undefined, signal);
 }
 
 async function request<T>(
