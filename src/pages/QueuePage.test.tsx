@@ -124,6 +124,25 @@ describe("the pending-bookings queue", () => {
     await screen.findByText("That booking was already confirmed.");
   });
 
+  it("shows the phone when the server includes it", async () => {
+    remaining = [booking("b4", "cal-1", "2026-05-05T09:00:00+00:00", "2026-05-05T08:15:00+00:00", false, "+79990000001")];
+
+    renderWithAuth(<QueuePage />);
+
+    await screen.findByText("+79990000001");
+  });
+
+  it("shows 'hidden', not a blank cell, when the server omits the phone", async () => {
+    // `20-12`: a `null` phone means the operator does not hold `customer:read`, never "no phone
+    // recorded" - Customer.Phone is not nullable, so the console must never render that state as an
+    // empty cell indistinguishable from "nothing to show".
+    remaining = [booking("b5", "cal-1", "2026-05-05T09:00:00+00:00", "2026-05-05T08:15:00+00:00", false, null)];
+
+    renderWithAuth(<QueuePage />);
+
+    await screen.findByText("hidden");
+  });
+
   it("explains a permission failure in words an operator can act on", async () => {
     vi.stubGlobal(
       "fetch",
@@ -154,6 +173,7 @@ function booking(
   startsAt: string,
   confirmationDeadline: string,
   isOverdue: boolean,
+  phone: string | null = null,
 ): PendingBooking {
   return {
     bookingId,
@@ -166,5 +186,6 @@ function booking(
     localDate: "2026-05-05",
     confirmationDeadline,
     isOverdue,
+    phone,
   };
 }
