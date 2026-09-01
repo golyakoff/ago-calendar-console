@@ -31,6 +31,7 @@ describe("the worker schedule section", () => {
     materializeFrom: "2026-03-02",
     createdAt: "2026-03-02T09:00:00Z",
     updatedAt: "2026-03-02T09:00:00Z",
+    buffersCountTowardServiceDuration: true,
   };
 
   beforeEach(() => {
@@ -164,6 +165,46 @@ describe("the worker schedule section", () => {
     await userEvent.selectOptions(screen.getByLabelText("Template"), "Weekly");
 
     await screen.findByText(/clears the cycle settings/);
+  });
+
+  it("defaults the buffers-count toggle to checked, matching the aggregate's own default", async () => {
+    renderWithAuth(<WorkerScheduleSection workerId="w1" />);
+    await screen.findByRole("button", { name: "Create schedule" });
+
+    expect(screen.getByLabelText("Перерывы внутри длинной записи считаются рабочим временем")).toHaveProperty(
+      "checked",
+      true,
+    );
+  });
+
+  /** `20-18`'s own worked example, both ways - the item's exact numbers (70/30/10), proven against
+   * the same arithmetic the server's own ConsecutiveRunFinder uses. */
+  it("shows the 70/30/10 arithmetic note, both ways, for the item's own numbers", async () => {
+    renderWithAuth(<WorkerScheduleSection workerId="w1" />);
+    await screen.findByRole("button", { name: "Create schedule" });
+
+    await userEvent.clear(screen.getByLabelText("Slot length (minutes)"));
+    await userEvent.type(screen.getByLabelText("Slot length (minutes)"), "30");
+    await userEvent.clear(screen.getByLabelText("Buffer between slots (minutes)"));
+    await userEvent.type(screen.getByLabelText("Buffer between slots (minutes)"), "10");
+
+    // Buffers count (the default): two slots, ending 13:10.
+    await screen.findByText(/услуга 70 мин займёт 2 слота, 12:00–13:10/);
+
+    // Buffers do not count: three slots, ending 13:50.
+    await userEvent.click(screen.getByLabelText("Перерывы внутри длинной записи считаются рабочим временем"));
+    await screen.findByText(/услуга 70 мин займёт 3 слота, 12:00–13:50/);
+  });
+
+  it("sends the buffers-count toggle's own value on save", async () => {
+    renderWithAuth(<WorkerScheduleSection workerId="w1" />);
+    await screen.findByRole("button", { name: "Create schedule" });
+
+    await userEvent.click(screen.getByLabelText("Перерывы внутри длинной записи считаются рабочим временем"));
+    await userEvent.click(screen.getByRole("button", { name: "Create schedule" }));
+
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].body).toMatchObject({ buffersCountTowardServiceDuration: false });
   });
 
   it("shows the server's own refusal, such as a horizon above the cap", async () => {

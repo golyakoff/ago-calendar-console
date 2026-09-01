@@ -140,6 +140,30 @@ describe("the materialised slot view", () => {
     expect(screen.getByText("Blocked")).toBeDefined();
   });
 
+  /** `20-18`: three consecutive rows sharing one `bookingId` are marked as one run - the start row
+   * and the end row each carry their own boundary class, and the row in between carries neither
+   * (only the shared "in a group" class), matching a run whose middle is genuinely in the middle. A
+   * fourth, unrelated `Available` row (`bookingId: null`) gets no group class at all. */
+  it("marks consecutive rows sharing a bookingId as one run, and leaves solo rows unmarked", async () => {
+    slots = [
+      slot({ eventId: "e1", startsAt: "2026-05-12T09:00:00Z", endsAt: "2026-05-12T09:30:00Z", status: "Booked", bookingId: "b1" }),
+      slot({ eventId: "e2", startsAt: "2026-05-12T09:40:00Z", endsAt: "2026-05-12T10:10:00Z", status: "Booked", bookingId: "b1" }),
+      slot({ eventId: "e3", startsAt: "2026-05-12T10:20:00Z", endsAt: "2026-05-12T10:50:00Z", status: "Booked", bookingId: "b1" }),
+      slot({ eventId: "e4", startsAt: "2026-05-12T11:00:00Z", endsAt: "2026-05-12T11:30:00Z", status: "Available", bookingId: null }),
+    ];
+
+    render();
+
+    await screen.findByText("Available");
+    const rows = screen.getAllByRole("row").slice(1); // drop the header row
+    expect(rows).toHaveLength(4);
+
+    expect(rows[0].className).toBe("booking-group booking-group-start");
+    expect(rows[1].className).toBe("booking-group");
+    expect(rows[2].className).toBe("booking-group booking-group-end");
+    expect(rows[3].className).toBe("");
+  });
+
   it("explains a permission failure in words an operator can act on", async () => {
     vi.stubGlobal(
       "fetch",
@@ -182,6 +206,7 @@ function slot(overrides: Partial<WorkerSlot> = {}): WorkerSlot {
     customerId: null,
     customerDisplayName: null,
     phone: null,
+    bookingId: null,
     ...overrides,
   };
 }
