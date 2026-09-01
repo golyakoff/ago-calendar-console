@@ -171,6 +171,56 @@ export interface WorkerSlot {
   phone: string | null;
 }
 
+/**
+ * `20-16`: one booking a re-cut found inside `[from, horizon]` for a worker. Field names match
+ * `Ago.Calendar.Contracts.RecutBookingPreviewResponse` verbatim.
+ */
+export interface RecutBookingPreview {
+  bookingId: string;
+  startsAt: string;
+  endsAt: string;
+  /** Never anything but `PendingConfirmation`, `Booked` or `NoShow` - see `IEventRepository` for why
+   * those three, and no other status, hold a customer. */
+  status: "PendingConfirmation" | "Booked" | "NoShow";
+  serviceId: string | null;
+  serviceName: string | null;
+  /** `20-12`'s own gate, reused a third time (`WorkerSlot.customerId` and `PendingBooking`'s own
+   * field are the other two) - never gated, a foreign key rather than personal data. */
+  customerId: string | null;
+  customerDisplayName: string | null;
+  phone: string | null;
+  /**
+   * `false` only for a `NoShow` row: a visit that already happened cannot be cancelled through the
+   * ordinary cancellation use case, so the console offers no cancel/keep control for it at all - its
+   * day is always going to be skipped, and the copy says so rather than showing a control that would
+   * do nothing.
+   */
+  canDecide: boolean;
+}
+
+/** `20-16`. One business-local day a re-cut would act on - including a day with nothing on it at
+ * all, since that day is still going to be freshly cut. */
+export interface RecutDayPreview {
+  localDate: string;
+  availableSlotsToDelete: number;
+  bookings: RecutBookingPreview[];
+}
+
+/** `20-16`. `fingerprint` is opaque - hand it back unchanged to `recutSchedule`, which refuses the
+ * whole request if the booking set it names has changed since this preview was read. */
+export interface RecutPreviewResult {
+  days: RecutDayPreview[];
+  fingerprint: string;
+}
+
+export interface RecutResult {
+  recutDays: string[];
+  skippedDays: string[];
+  slotsDeleted: number;
+  slotsInserted: number;
+  bookingsCancelled: number;
+}
+
 export interface Contact {
   customerId: string;
   phone: string;
@@ -390,6 +440,35 @@ export function getWorkerSlots(
   return request<WorkerSlot[]>(
     token, "GET", `/workers/${encodeURIComponent(workerId)}/slots?${query.toString()}`, undefined, signal,
   );
+}
+
+/**
+ * `20-16`: shows what a re-cut back to `from` would destroy, before it destroys anything. Read-only -
+ * nothing is written until `recutSchedule` is called with the `fingerprint` this returns.
+ */
+export function previewRecutSchedule(
+  token: string,
+  workerId: string,
+  from: string,
+  signal?: AbortSignal,
+): Promise<RecutPreviewResult> {
+  return request<RecutPreviewResult>(
+    token, "POST", `/workers/${encodeURIComponent(workerId)}/schedule/recut/preview`, { from }, signal,
+  );
+}
+
+/**
+ * `20-16`. `fingerprint` must be the exact value the preview this decision set is based on returned -
+ * the server refuses the whole request (`recut.stale`) if the bookings in range changed since. One
+ * entry in `decisions` per booking the preview showed with `canDecide: true`; a `NoShow` row needs
+ * none and always forces its day to be skipped.
+ */
+export function recutSchedule(
+  token: string,
+  workerId: string,
+  body: { from: string; fingerprint: string; decisions: { bookingId: string; decision: "Cancel" | "Keep" }[] },
+): Promise<RecutResult> {
+  return request<RecutResult>(token, "POST", `/workers/${encodeURIComponent(workerId)}/schedule/recut`, body);
 }
 
 async function request<T>(

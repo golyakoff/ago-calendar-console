@@ -18,7 +18,8 @@ export function errorMessage(reason: unknown): string {
       reason.code === "booking.forbidden" ||
       reason.code === "access.forbidden" ||
       reason.code === "contacts.forbidden" ||
-      reason.code === "worker_slots.forbidden"
+      reason.code === "worker_slots.forbidden" ||
+      reason.code === "recut.forbidden"
     ) {
       return "Your operator account does not have permission for that in this tenant.";
     }
