@@ -140,6 +140,21 @@ tr.overdue {
   background: #fff3f3;
 }
 
+/* `20-18`: a left rail on every row of a multi-slot booking, unbroken between them and closed off at
+   the run's own first and last row - the same "one visual unit, several rows" cue a merged cell would
+   give, without actually merging any cell (a slot stays one row with one status). */
+.booking-group td:first-child {
+  border-left: 3px solid var(--accent);
+}
+
+.booking-group-start td {
+  border-top: 1px solid var(--accent);
+}
+
+.booking-group-end td {
+  border-bottom: 1px solid var(--accent);
+}
+
 pre {
   background: #f2f4f7;
   padding: 0.75rem;

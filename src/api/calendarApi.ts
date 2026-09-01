@@ -29,7 +29,6 @@ export interface ConfiguredCalendar {
   calendarId: string;
   name: string;
   timeZone: string;
-  bufferMinutes: number;
   isPublished: boolean;
   workerIds: string[];
   workingHours: WorkingHoursRule[];
@@ -60,6 +59,37 @@ export interface WorkerDetail {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * `20-14`: a worker's own schedule template. `kind` is the wire string `"Weekly"` or `"Cycle"` -
+ * mirrors `Ago.Calendar.Domain.ScheduleKind`'s own names, chosen over the numeric enum ordinal
+ * `System.Text.Json` would otherwise serialise a bare C# enum as. The five `cycle*` fields are
+ * populated only while `kind === "Cycle"`; `null` while `kind === "Weekly"`, the same
+ * populated-only-for-the-active-kind shape the server's own aggregate carries.
+ */
+export interface WorkerSchedule {
+  scheduleId: string;
+  workerId: string;
+  kind: "Weekly" | "Cycle";
+  cycleAnchor: string | null;
+  cycleWorkingDays: number | null;
+  cycleRestDays: number | null;
+  cycleStartsAt: string | null;
+  cycleEndsAt: string | null;
+  slotMinutes: number;
+  bufferMinutes: number;
+  horizonDays: number;
+  materializeFrom: string;
+  createdAt: string;
+  updatedAt: string;
+  /**
+   * `20-18`: whether a multi-slot booking's own internal buffers count toward satisfying a
+   * service's duration, or only toward the run's physical span - see
+   * `Ago.Calendar.Domain.WorkerSchedule.BuffersCountTowardServiceDuration`'s own remarks for the
+   * arithmetic this decides between. Defaults `true` server-side.
+   */
+  buffersCountTowardServiceDuration: boolean;
 }
 
 export interface ConfiguredService {
@@ -146,6 +176,63 @@ export interface WorkerSlot {
   /** `20-12`'s own gate, reused. See `customerId` for how its own two null-reasons are told apart. */
   customerDisplayName: string | null;
   phone: string | null;
+  /**
+   * `20-18`: which booking this slot belongs to, null exactly when `status` is `"Available"` or
+   * `"Blocked"`. Two rows sharing this value are two slots of one multi-slot booking - this is what
+   * lets `WorkerSlotsPage` show them as the same booking without merging the rows themselves (a slot
+   * is still one row with one status).
+   */
+  bookingId: string | null;
+}
+
+/**
+ * `20-16`: one booking a re-cut found inside `[from, horizon]` for a worker. Field names match
+ * `Ago.Calendar.Contracts.RecutBookingPreviewResponse` verbatim.
+ */
+export interface RecutBookingPreview {
+  bookingId: string;
+  startsAt: string;
+  endsAt: string;
+  /** Never anything but `PendingConfirmation`, `Booked` or `NoShow` - see `IEventRepository` for why
+   * those three, and no other status, hold a customer. */
+  status: "PendingConfirmation" | "Booked" | "NoShow";
+  serviceId: string | null;
+  serviceName: string | null;
+  /** `20-12`'s own gate, reused a third time (`WorkerSlot.customerId` and `PendingBooking`'s own
+   * field are the other two) - never gated, a foreign key rather than personal data. */
+  customerId: string | null;
+  customerDisplayName: string | null;
+  phone: string | null;
+  /**
+   * `false` only for a `NoShow` row: a visit that already happened cannot be cancelled through the
+   * ordinary cancellation use case, so the console offers no cancel/keep control for it at all - its
+   * day is always going to be skipped, and the copy says so rather than showing a control that would
+   * do nothing.
+   */
+  canDecide: boolean;
+}
+
+/** `20-16`. One business-local day a re-cut would act on - including a day with nothing on it at
+ * all, since that day is still going to be freshly cut. */
+export interface RecutDayPreview {
+  localDate: string;
+  availableSlotsToDelete: number;
+  bookings: RecutBookingPreview[];
+}
+
+/** `20-16`. `fingerprint` is opaque - hand it back unchanged to `recutSchedule`, which refuses the
+ * whole request if the booking set it names has changed since this preview was read. */
+export interface RecutPreviewResult {
+  days: RecutDayPreview[];
+  fingerprint: string;
+}
+
+export interface RecutResult {
+  recutDays: string[];
+  skippedDays: string[];
+  slotsDeleted: number;
+  slotsInserted: number;
+  bookingsCancelled: number;
 }
 
 export interface Contact {
@@ -191,7 +278,7 @@ export function setAllowedOrigins(token: string, origins: string[]): Promise<voi
 
 export function createCalendar(
   token: string,
-  body: { name: string; timeZone: string; bufferMinutes: number; publish: boolean },
+  body: { name: string; timeZone: string; publish: boolean },
 ): Promise<{ calendarId: string }> {
   return request<{ calendarId: string }>(token, "POST", "/calendars", body);
 }
@@ -199,7 +286,7 @@ export function createCalendar(
 export function updateCalendar(
   token: string,
   calendarId: string,
-  body: { name: string; bufferMinutes: number; publish: boolean },
+  body: { name: string; publish: boolean },
 ): Promise<void> {
   return requestVoid(token, "PUT", `/calendars/${encodeURIComponent(calendarId)}`, body);
 }
@@ -252,6 +339,34 @@ export function updateWorker(
 
 export function deleteWorker(token: string, workerId: string): Promise<void> {
   return requestVoid(token, "DELETE", `/workers/${encodeURIComponent(workerId)}`);
+}
+
+/** `20-14`. Rejects with `configuration.no_schedule` when the worker has none yet - the console
+ * renders that as the "create a schedule" form rather than as an error. */
+export function getWorkerSchedule(token: string, workerId: string, signal?: AbortSignal): Promise<WorkerSchedule> {
+  return request<WorkerSchedule>(token, "GET", `/workers/${encodeURIComponent(workerId)}/schedule`, undefined, signal);
+}
+
+/** `20-14`. Create-or-replace: the same call whether the worker has no schedule yet or already has
+ * one - see `WorkerSchedule`'s own remarks on the wire shape. */
+export function saveWorkerSchedule(
+  token: string,
+  workerId: string,
+  body: {
+    kind: "Weekly" | "Cycle";
+    cycleAnchor: string | null;
+    cycleWorkingDays: number | null;
+    cycleRestDays: number | null;
+    cycleStartsAt: string | null;
+    cycleEndsAt: string | null;
+    slotMinutes: number;
+    bufferMinutes: number;
+    horizonDays: number;
+    materializeFrom: string;
+    buffersCountTowardServiceDuration: boolean;
+  },
+): Promise<WorkerSchedule> {
+  return request<WorkerSchedule>(token, "PUT", `/workers/${encodeURIComponent(workerId)}/schedule`, body);
 }
 
 export function addWorkingHoursRule(
@@ -340,6 +455,35 @@ export function getWorkerSlots(
   return request<WorkerSlot[]>(
     token, "GET", `/workers/${encodeURIComponent(workerId)}/slots?${query.toString()}`, undefined, signal,
   );
+}
+
+/**
+ * `20-16`: shows what a re-cut back to `from` would destroy, before it destroys anything. Read-only -
+ * nothing is written until `recutSchedule` is called with the `fingerprint` this returns.
+ */
+export function previewRecutSchedule(
+  token: string,
+  workerId: string,
+  from: string,
+  signal?: AbortSignal,
+): Promise<RecutPreviewResult> {
+  return request<RecutPreviewResult>(
+    token, "POST", `/workers/${encodeURIComponent(workerId)}/schedule/recut/preview`, { from }, signal,
+  );
+}
+
+/**
+ * `20-16`. `fingerprint` must be the exact value the preview this decision set is based on returned -
+ * the server refuses the whole request (`recut.stale`) if the bookings in range changed since. One
+ * entry in `decisions` per booking the preview showed with `canDecide: true`; a `NoShow` row needs
+ * none and always forces its day to be skipped.
+ */
+export function recutSchedule(
+  token: string,
+  workerId: string,
+  body: { from: string; fingerprint: string; decisions: { bookingId: string; decision: "Cancel" | "Keep" }[] },
+): Promise<RecutResult> {
+  return request<RecutResult>(token, "POST", `/workers/${encodeURIComponent(workerId)}/schedule/recut`, body);
 }
 
 async function request<T>(

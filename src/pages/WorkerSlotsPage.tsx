@@ -149,8 +149,8 @@ export function WorkerSlotsPage() {
             </tr>
           </thead>
           <tbody>
-            {slots.map((slot) => (
-              <tr key={slot.eventId}>
+            {slots.map((slot, index) => (
+              <tr key={slot.eventId} className={bookingGroupClassName(slots, index)}>
                 <td>{slot.localDate}</td>
                 <td>{WEEKDAYS[slot.weekday]}</td>
                 <td>
@@ -169,6 +169,37 @@ export function WorkerSlotsPage() {
       )}
     </section>
   );
+}
+
+/**
+ * `20-18`: a visual cue that two or more adjacent rows are the same multi-slot booking, without
+ * merging the rows themselves - this item's own scope keeps a slot as one row with one status. Rows
+ * arrive from the server already ordered by `startsAt` (`WorkerSlotReadStore`'s own `order by
+ * e.starts_at`), and a booking's own rows are contiguous by construction (`ConsecutiveRunFinder`
+ * never claims a gap), so a plain adjacent-index comparison is enough - no need to pre-group into a
+ * map keyed by `bookingId` for what is always a run of consecutive array entries.
+ */
+function bookingGroupClassName(slots: WorkerSlot[], index: number): string | undefined {
+  const slot = slots[index];
+  if (slot.bookingId === null) {
+    return undefined;
+  }
+
+  const sharesWithPrevious = index > 0 && slots[index - 1].bookingId === slot.bookingId;
+  const sharesWithNext = index < slots.length - 1 && slots[index + 1].bookingId === slot.bookingId;
+  if (!sharesWithPrevious && !sharesWithNext) {
+    return undefined;
+  }
+
+  const classNames = ["booking-group"];
+  if (!sharesWithPrevious) {
+    classNames.push("booking-group-start");
+  }
+  if (!sharesWithNext) {
+    classNames.push("booking-group-end");
+  }
+
+  return classNames.join(" ");
 }
 
 /** No customer at all (a free or blocked slot) reads as a plain dash - never confusable with
