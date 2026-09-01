@@ -6,6 +6,7 @@ import { ConfigurationPage } from "./pages/ConfigurationPage.js";
 import { ContactsPage } from "./pages/ContactsPage.js";
 import { QueuePage } from "./pages/QueuePage.js";
 import { AvailabilityPage } from "./pages/AvailabilityPage.js";
+import { WorkersPage } from "./pages/WorkersPage.js";
 import { SignInCallbackPage } from "./pages/SignInCallbackPage.js";
 
 /**
@@ -28,6 +29,7 @@ export function App() {
           <nav>
             <NavLink to="/">Queue</NavLink>
             <NavLink to="/setup">Setup</NavLink>
+            <NavLink to="/workers">Workers</NavLink>
             <NavLink to="/availability">Availability</NavLink>
             <NavLink to="/contacts">Contacts</NavLink>
             <NavLink to="/access">Access</NavLink>
@@ -59,6 +61,14 @@ export function App() {
             element={
               <RequireAuth>
                 <ConfigurationPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/workers"
+            element={
+              <RequireAuth>
+                <WorkersPage />
               </RequireAuth>
             }
           />

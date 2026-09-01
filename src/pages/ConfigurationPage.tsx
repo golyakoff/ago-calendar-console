@@ -4,7 +4,6 @@ import {
   addWorkingHoursRule,
   createCalendar,
   createService,
-  createWorker,
   getConfiguration,
   setAllowedOrigins,
   type TenantConfiguration,
@@ -14,18 +13,24 @@ import { errorMessage } from "./errorMessage.js";
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /**
- * Tenant setup: calendars, services, workers, working hours, and the embed's own allowed origins.
+ * Tenant setup: calendars, services, working hours, and the embed's own allowed origins.
  *
- * <b>One screen, four short forms, and a re-read after every write.</b> No optimistic update and no
- * client-side cache: the server refuses things this form cannot know about in advance (a worker
- * already on a calendar, a duplicate role name, a buffer the aggregate calls absurd), so the
- * authoritative answer is always the next `GET`. That is the right trade for a screen a tenant uses
- * a handful of times, and it is the wrong trade for the queue - which is why the queue does
- * something different.
+ * <b>One screen, three short forms, and a re-read after every write.</b> No optimistic update and no
+ * client-side cache: the server refuses things this form cannot know about in advance (a duplicate
+ * role name, a buffer the aggregate calls absurd), so the authoritative answer is always the next
+ * `GET`. That is the right trade for a screen a tenant uses a handful of times, and it is the wrong
+ * trade for the queue - which is why the queue does something different.
  *
  * <b>The public key is displayed with the script tag around it</b>, because that is the artefact the
  * shop actually needs. A key on its own leaves the last, error-prone step - writing the tag - to
  * somebody who has never seen one.
+ *
+ * <b>`20-13`: workers moved to their own screen.</b> This page created a worker with a single
+ * display-name field and nothing else - no rename, no deactivate, no delete, and the split
+ * фамилия/имя/отчество fields this item added had nowhere to go here. `WorkersPage` (the "Workers"
+ * nav link) is where a worker is created, edited and deleted now; `configuration.workers` still
+ * flows through this page's own state because the working-hours form below still needs it to name
+ * whose hours are whose.
  */
 export function ConfigurationPage() {
   const { accessToken } = useAuth();
@@ -139,31 +144,6 @@ export function ConfigurationPage() {
           ))}
         </ul>
         <ServiceForm disabled={busy} onSubmit={(body) => void run(() => createService(accessToken, body))} />
-      </section>
-
-      <section className="panel">
-        <h2>Workers</h2>
-        <ul>
-          {configuration.workers.map((worker) => (
-            <li key={worker.workerId}>
-              {worker.displayName}
-              {worker.isActive ? "" : " (inactive)"} ·{" "}
-              {worker.serviceIds.length === 0
-                ? "offers nothing yet"
-                : worker.serviceIds
-                    .map(
-                      (id) =>
-                        configuration.services.find((service) => service.serviceId === id)?.name ?? id,
-                    )
-                    .join(", ")}
-            </li>
-          ))}
-        </ul>
-        <WorkerForm
-          configuration={configuration}
-          disabled={busy}
-          onSubmit={(body) => void run(() => createWorker(accessToken, body))}
-        />
       </section>
 
       <section className="panel">
@@ -318,73 +298,6 @@ function ServiceForm({
 
       <button type="submit" disabled={disabled}>
         Add service
-      </button>
-    </form>
-  );
-}
-
-function WorkerForm({
-  configuration,
-  disabled,
-  onSubmit,
-}: {
-  configuration: TenantConfiguration;
-  disabled: boolean;
-  onSubmit: (body: { displayName: string; calendarId: string; serviceIds: string[] }) => void;
-}) {
-  const [displayName, setDisplayName] = useState("");
-  const [calendarId, setCalendarId] = useState(configuration.calendars[0]?.calendarId ?? "");
-  const [serviceIds, setServiceIds] = useState<string[]>([]);
-
-  if (configuration.calendars.length === 0) {
-    return <p className="muted">Add a calendar first - a worker belongs to exactly one.</p>;
-  }
-
-  return (
-    <form
-      onSubmit={(event: FormEvent) => {
-        event.preventDefault();
-        onSubmit({ displayName, calendarId: calendarId || configuration.calendars[0].calendarId, serviceIds });
-        setDisplayName("");
-        setServiceIds([]);
-      }}
-    >
-      <label htmlFor="worker-name">Worker name</label>
-      <input id="worker-name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
-
-      <label htmlFor="worker-calendar">Calendar</label>
-      {/* One calendar per worker in v1 - a single select, not a multi-select, because the aggregate
-          refuses a second and a multi-select would promise a shape it will not accept. */}
-      <select id="worker-calendar" value={calendarId} onChange={(event) => setCalendarId(event.target.value)}>
-        {configuration.calendars.map((calendar) => (
-          <option key={calendar.calendarId} value={calendar.calendarId}>
-            {calendar.name}
-          </option>
-        ))}
-      </select>
-
-      <fieldset>
-        <legend>Services performed</legend>
-        {configuration.services.map((service) => (
-          <label key={service.serviceId}>
-            <input
-              type="checkbox"
-              checked={serviceIds.includes(service.serviceId)}
-              onChange={(event) =>
-                setServiceIds((current) =>
-                  event.target.checked
-                    ? [...current, service.serviceId]
-                    : current.filter((id) => id !== service.serviceId),
-                )
-              }
-            />{" "}
-            {service.name}
-          </label>
-        ))}
-      </fieldset>
-
-      <button type="submit" disabled={disabled}>
-        Add worker
       </button>
     </form>
   );
