@@ -106,6 +106,7 @@ export function QueuePage() {
             <tr>
               <th scope="col">When</th>
               <th scope="col">Calendar</th>
+              <th scope="col">Phone</th>
               <th scope="col">Deadline</th>
               <th scope="col">Actions</th>
             </tr>
@@ -116,6 +117,18 @@ export function QueuePage() {
                 <td>{new Date(row.startsAt).toLocaleString()}</td>
                 <td>
                   <code>{row.calendarId.slice(0, 8)}</code>
+                </td>
+                <td>
+                  {/* `20-12`: `null` means "hidden - you don't have contact-visibility permission",
+                      never a blank cell indistinguishable from "nothing recorded" - see
+                      `PendingBooking.phone`'s own remarks for why the latter cannot actually occur. */}
+                  {row.phone === null ? (
+                    <span className="muted" title="You don't have contact-visibility permission for this tenant.">
+                      hidden
+                    </span>
+                  ) : (
+                    row.phone
+                  )}
                 </td>
                 <td>
                   {new Date(row.confirmationDeadline).toLocaleString()}

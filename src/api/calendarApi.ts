@@ -42,6 +42,26 @@ export interface ConfiguredWorker {
   serviceIds: string[];
 }
 
+/**
+ * `20-13`: one worker, in full - the workers table's own row shape and the edit card's prefill, in
+ * one response so the console never needs a second request to open a card for a worker it has
+ * already listed. Field names match `Ago.Calendar.Contracts.WorkerResponse` verbatim.
+ */
+export interface WorkerDetail {
+  workerId: string;
+  lastName: string;
+  firstName: string;
+  middleName: string | null;
+  displayName: string;
+  /** Whether a human typed `displayName` directly - see `Worker.DisplayNameIsCustom`'s own remarks.
+   * While this is `false`, editing the last or first name keeps recomputing the display name; the
+   * moment it is `true`, nothing recomputes it again. */
+  displayNameIsCustom: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ConfiguredService {
   serviceId: string;
   name: string;
@@ -73,6 +93,71 @@ export interface PendingBooking {
    * means the confirmation sweep is not doing its job, and the customer has already been told they
    * are booked. */
   isOverdue: boolean;
+  /**
+   * `20-12`. `null` means exactly one thing: this operator does not hold `customer:read` in this
+   * tenant, so the server never joined to `customers` at all - never "no phone recorded", which
+   * cannot happen (`Ago.Calendar.Domain.Customer.Phone` is not nullable). `QueuePage` renders that
+   * one state as "hidden, not absent" rather than as an empty cell indistinguishable from either
+   * reading.
+   */
+  phone: string | null;
+}
+
+export interface Role {
+  roleId: string;
+  name: string;
+  permissions: string[];
+}
+
+export interface OperatorInfo {
+  operatorId: string;
+  displayName: string;
+  /** `20-12`: the tenant's own account owner - the first operator ever provisioned for it, always
+   * holding a role that grants `customer:read` (`Ago.Calendar.Domain.Operator.IsAccountOwner`'s own
+   * invariant). The console never offers to revoke that role from this operator - not because the
+   * button is hidden, but because the server refuses it either way; hiding it here just saves an
+   * operator a round trip that would only ever fail. */
+  isAccountOwner: boolean;
+  roleIds: string[];
+}
+
+/**
+ * `20-15`: one row of a worker's materialised schedule - whatever it currently is, not just what is
+ * occupied. Field names match `Ago.Calendar.Contracts.WorkerSlotResponse` verbatim.
+ */
+export interface WorkerSlot {
+  eventId: string;
+  localDate: string;
+  /** 0 = Sunday, matching `Date.prototype.getDay()` and `System.DayOfWeek` alike - derived
+   * server-side from `localDate`, never from this browser's own zone. */
+  weekday: number;
+  startsAt: string;
+  endsAt: string;
+  status: "Available" | "PendingConfirmation" | "Booked" | "Cancelled" | "NoShow" | "Blocked";
+  serviceId: string | null;
+  /** Null on a `Blocked` row - a closure is not a service. */
+  serviceName: string | null;
+  /**
+   * `20-15`. Not personal data - a foreign key - so never gated, unlike `customerDisplayName`/
+   * `phone` below. What tells their two null-reasons apart: null here means nobody holds the slot;
+   * non-null with those two null means somebody does and this operator may not see who.
+   */
+  customerId: string | null;
+  /** `20-12`'s own gate, reused. See `customerId` for how its own two null-reasons are told apart. */
+  customerDisplayName: string | null;
+  phone: string | null;
+}
+
+export interface Contact {
+  customerId: string;
+  phone: string;
+  displayName: string | null;
+  notes: string | null;
+  /** Always zero today - nothing in this product writes it yet (`20-04`'s own retro note). Shown
+   * honestly rather than hidden, so the report does not imply a feature that does not exist. */
+  noShowCount: number;
+  firstSeenAt: string;
+  lastSeenAt: string;
 }
 
 /**
@@ -126,11 +211,47 @@ export function createService(
   return request<{ serviceId: string }>(token, "POST", "/services", body);
 }
 
+/** `20-13`. `middleName`/`displayName` are `null` when the console never touched that field - see
+ * `WorkerDetail.displayNameIsCustom`'s own remarks for what a non-null `displayName` does server
+ * side. */
 export function createWorker(
   token: string,
-  body: { displayName: string; calendarId: string; serviceIds: string[] },
+  body: {
+    lastName: string;
+    firstName: string;
+    middleName: string | null;
+    displayName: string | null;
+    calendarId: string;
+    serviceIds: string[];
+  },
 ): Promise<{ workerId: string }> {
   return request<{ workerId: string }>(token, "POST", "/workers", body);
+}
+
+export function listWorkers(token: string, signal?: AbortSignal): Promise<WorkerDetail[]> {
+  return request<WorkerDetail[]>(token, "GET", "/workers", undefined, signal);
+}
+
+export function getWorker(token: string, workerId: string, signal?: AbortSignal): Promise<WorkerDetail> {
+  return request<WorkerDetail>(token, "GET", `/workers/${encodeURIComponent(workerId)}`, undefined, signal);
+}
+
+export function updateWorker(
+  token: string,
+  workerId: string,
+  body: {
+    lastName: string;
+    firstName: string;
+    middleName: string | null;
+    displayName: string | null;
+    isActive: boolean;
+  },
+): Promise<void> {
+  return requestVoid(token, "PUT", `/workers/${encodeURIComponent(workerId)}`, body);
+}
+
+export function deleteWorker(token: string, workerId: string): Promise<void> {
+  return requestVoid(token, "DELETE", `/workers/${encodeURIComponent(workerId)}`);
 }
 
 export function addWorkingHoursRule(
@@ -170,6 +291,55 @@ export function editDayBoundary(
   body: { calendarId: string; workerId: string; localDate: string; opensAt: string; closesAt: string },
 ): Promise<void> {
   return requestVoid(token, "POST", "/availability/day-boundary", body);
+}
+
+export function getRoles(token: string, signal?: AbortSignal): Promise<Role[]> {
+  return request<Role[]>(token, "GET", "/roles", undefined, signal);
+}
+
+export function createRole(
+  token: string,
+  body: { name: string; permissions: string[] },
+): Promise<{ roleId: string }> {
+  return request<{ roleId: string }>(token, "POST", "/roles", body);
+}
+
+export function getOperators(token: string, signal?: AbortSignal): Promise<OperatorInfo[]> {
+  return request<OperatorInfo[]>(token, "GET", "/operators", undefined, signal);
+}
+
+export function grantOperatorRole(token: string, operatorId: string, roleId: string): Promise<void> {
+  return requestVoid(
+    token,
+    "POST",
+    `/operators/${encodeURIComponent(operatorId)}/roles/${encodeURIComponent(roleId)}`,
+  );
+}
+
+export function revokeOperatorRole(token: string, operatorId: string, roleId: string): Promise<void> {
+  return requestVoid(
+    token,
+    "DELETE",
+    `/operators/${encodeURIComponent(operatorId)}/roles/${encodeURIComponent(roleId)}`,
+  );
+}
+
+export function getContacts(token: string, signal?: AbortSignal): Promise<Contact[]> {
+  return request<Contact[]>(token, "GET", "/contacts", undefined, signal);
+}
+
+/** `20-15`. `from`/`to` are `YYYY-MM-DD`, business-local, both inclusive. */
+export function getWorkerSlots(
+  token: string,
+  workerId: string,
+  from: string,
+  to: string,
+  signal?: AbortSignal,
+): Promise<WorkerSlot[]> {
+  const query = new URLSearchParams({ from, to });
+  return request<WorkerSlot[]>(
+    token, "GET", `/workers/${encodeURIComponent(workerId)}/slots?${query.toString()}`, undefined, signal,
+  );
 }
 
 async function request<T>(

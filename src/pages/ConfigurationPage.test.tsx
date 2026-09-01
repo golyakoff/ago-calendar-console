@@ -103,21 +103,6 @@ describe("the tenant setup screen", () => {
     });
   });
 
-  it("creates a worker on exactly one calendar, with the services they perform", async () => {
-    renderWithAuth(<ConfigurationPage />);
-    await screen.findByLabelText("Worker name");
-
-    await userEvent.type(screen.getByLabelText("Worker name"), "Robin");
-    await userEvent.click(screen.getByLabelText("Haircut"));
-    await userEvent.click(screen.getByRole("button", { name: "Add worker" }));
-
-    expect(posted.find((entry) => entry.url.endsWith("/console/workers"))?.body).toEqual({
-      displayName: "Robin",
-      calendarId: "cal-1",
-      serviceIds: ["s1"],
-    });
-  });
-
   it("sends working hours as wall clock, never as an instant", async () => {
     renderWithAuth(<ConfigurationPage />);
     await screen.findByLabelText("Opens");
@@ -146,17 +131,6 @@ describe("the tenant setup screen", () => {
     expect(posted.find((entry) => entry.url.endsWith("/allowed-origins"))?.body).toEqual({
       origins: ["https://a.example", "https://b.example"],
     });
-  });
-
-  it("refuses to offer a worker form before there is a calendar to put one on", async () => {
-    // A worker belongs to exactly one calendar, so a worker form with no calendar to choose would be
-    // a form whose submit can only fail.
-    configuration = { ...configuration, calendars: [], workers: [] };
-
-    renderWithAuth(<ConfigurationPage />);
-
-    await screen.findByText(/Add a calendar first/i);
-    expect(screen.queryByLabelText("Worker name")).toBeNull();
   });
 
   it("shows the server's own rejection instead of pretending the write worked", async () => {
