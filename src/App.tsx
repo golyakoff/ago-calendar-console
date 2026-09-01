@@ -8,6 +8,7 @@ import { QueuePage } from "./pages/QueuePage.js";
 import { AvailabilityPage } from "./pages/AvailabilityPage.js";
 import { WorkersPage } from "./pages/WorkersPage.js";
 import { WorkerSlotsPage } from "./pages/WorkerSlotsPage.js";
+import { WorkerRecutPage } from "./pages/WorkerRecutPage.js";
 import { SignInCallbackPage } from "./pages/SignInCallbackPage.js";
 
 /**
@@ -78,6 +79,14 @@ export function App() {
             element={
               <RequireAuth>
                 <WorkerSlotsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/workers/:workerId/recut"
+            element={
+              <RequireAuth>
+                <WorkerRecutPage />
               </RequireAuth>
             }
           />

@@ -122,7 +122,8 @@ export function WorkersPage() {
               <button type="button" disabled={busy} onClick={() => setConfirmingDelete(worker)}>
                 Delete
               </button>{" "}
-              <Link to={`/workers/${worker.workerId}/slots`}>Slots</Link>
+              <Link to={`/workers/${worker.workerId}/slots`}>Slots</Link>{" "}
+              <Link to={`/workers/${worker.workerId}/recut`}>Re-cut</Link>
             </>
           )}
         />

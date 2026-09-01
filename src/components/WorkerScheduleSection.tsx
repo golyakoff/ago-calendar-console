@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { CalendarApiError, getWorkerSchedule, saveWorkerSchedule, type WorkerSchedule } from "../api/calendarApi.js";
 import { useAuth } from "../auth/AuthContext.js";
 import { errorMessage } from "../pages/errorMessage.js";
@@ -295,6 +296,15 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
           onChange={(event) => setForm({ ...form, materializeFrom: event.target.value })}
           required
         />
+        {/* `20-16`: this save can only move the cursor forward - see WorkerSchedule's own forward-only
+            guard. Moving it back on purpose, to regenerate days already cut under a wrong template,
+            is a separate, destructive screen with its own preview and confirmation. */}
+        {existing !== null && (
+          <p className="muted">
+            Need to fix days already cut under an old template? <Link to={`/workers/${workerId}/recut`}>Re-cut the schedule</Link>{" "}
+            instead of moving this date - it shows what would be deleted before anything is.
+          </p>
+        )}
 
         <div className="worker-schedule-actions">
           <button type="submit" disabled={busy}>
