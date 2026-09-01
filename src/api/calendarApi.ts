@@ -121,6 +121,33 @@ export interface OperatorInfo {
   roleIds: string[];
 }
 
+/**
+ * `20-15`: one row of a worker's materialised schedule - whatever it currently is, not just what is
+ * occupied. Field names match `Ago.Calendar.Contracts.WorkerSlotResponse` verbatim.
+ */
+export interface WorkerSlot {
+  eventId: string;
+  localDate: string;
+  /** 0 = Sunday, matching `Date.prototype.getDay()` and `System.DayOfWeek` alike - derived
+   * server-side from `localDate`, never from this browser's own zone. */
+  weekday: number;
+  startsAt: string;
+  endsAt: string;
+  status: "Available" | "PendingConfirmation" | "Booked" | "Cancelled" | "NoShow" | "Blocked";
+  serviceId: string | null;
+  /** Null on a `Blocked` row - a closure is not a service. */
+  serviceName: string | null;
+  /**
+   * `20-15`. Not personal data - a foreign key - so never gated, unlike `customerDisplayName`/
+   * `phone` below. What tells their two null-reasons apart: null here means nobody holds the slot;
+   * non-null with those two null means somebody does and this operator may not see who.
+   */
+  customerId: string | null;
+  /** `20-12`'s own gate, reused. See `customerId` for how its own two null-reasons are told apart. */
+  customerDisplayName: string | null;
+  phone: string | null;
+}
+
 export interface Contact {
   customerId: string;
   phone: string;
@@ -299,6 +326,20 @@ export function revokeOperatorRole(token: string, operatorId: string, roleId: st
 
 export function getContacts(token: string, signal?: AbortSignal): Promise<Contact[]> {
   return request<Contact[]>(token, "GET", "/contacts", undefined, signal);
+}
+
+/** `20-15`. `from`/`to` are `YYYY-MM-DD`, business-local, both inclusive. */
+export function getWorkerSlots(
+  token: string,
+  workerId: string,
+  from: string,
+  to: string,
+  signal?: AbortSignal,
+): Promise<WorkerSlot[]> {
+  const query = new URLSearchParams({ from, to });
+  return request<WorkerSlot[]>(
+    token, "GET", `/workers/${encodeURIComponent(workerId)}/slots?${query.toString()}`, undefined, signal,
+  );
 }
 
 async function request<T>(

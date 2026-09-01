@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.js";
 import {
   createWorker,
@@ -113,9 +114,10 @@ export function WorkersPage() {
               </button>{" "}
               <button type="button" disabled={busy} onClick={() => setConfirmingDelete(worker)}>
                 Delete
-              </button>
-              {/* `20-14`'s schedule link and `20-15`'s slots link arrive here, as more buttons in
-                  this same cell - absent until then, not broken (the item's own scope). */}
+              </button>{" "}
+              <Link to={`/workers/${worker.workerId}/slots`}>Slots</Link>
+              {/* `20-14`'s schedule link arrives here too, as one more link in this same cell -
+                  absent until then, not broken (the item's own scope). */}
             </>
           )}
         />
@@ -160,7 +162,16 @@ export function WorkersPage() {
                     }),
               )
             }
-          />
+          >
+            {/* `20-15`: reached through WorkerCard's own children slot, only rendered in edit mode
+                (WorkerCard's own code) - there is nothing yet to show slots for on a worker that does
+                not exist. `20-14`'s schedule link arrives here too, as a second paragraph. */}
+            {editing !== "new" && (
+              <p>
+                <Link to={`/workers/${editing.workerId}/slots`}>View slots</Link>
+              </p>
+            )}
+          </WorkerCard>
         </section>
       )}
 
