@@ -42,6 +42,26 @@ export interface ConfiguredWorker {
   serviceIds: string[];
 }
 
+/**
+ * `20-13`: one worker, in full - the workers table's own row shape and the edit card's prefill, in
+ * one response so the console never needs a second request to open a card for a worker it has
+ * already listed. Field names match `Ago.Calendar.Contracts.WorkerResponse` verbatim.
+ */
+export interface WorkerDetail {
+  workerId: string;
+  lastName: string;
+  firstName: string;
+  middleName: string | null;
+  displayName: string;
+  /** Whether a human typed `displayName` directly - see `Worker.DisplayNameIsCustom`'s own remarks.
+   * While this is `false`, editing the last or first name keeps recomputing the display name; the
+   * moment it is `true`, nothing recomputes it again. */
+  displayNameIsCustom: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ConfiguredService {
   serviceId: string;
   name: string;
@@ -164,11 +184,47 @@ export function createService(
   return request<{ serviceId: string }>(token, "POST", "/services", body);
 }
 
+/** `20-13`. `middleName`/`displayName` are `null` when the console never touched that field - see
+ * `WorkerDetail.displayNameIsCustom`'s own remarks for what a non-null `displayName` does server
+ * side. */
 export function createWorker(
   token: string,
-  body: { displayName: string; calendarId: string; serviceIds: string[] },
+  body: {
+    lastName: string;
+    firstName: string;
+    middleName: string | null;
+    displayName: string | null;
+    calendarId: string;
+    serviceIds: string[];
+  },
 ): Promise<{ workerId: string }> {
   return request<{ workerId: string }>(token, "POST", "/workers", body);
+}
+
+export function listWorkers(token: string, signal?: AbortSignal): Promise<WorkerDetail[]> {
+  return request<WorkerDetail[]>(token, "GET", "/workers", undefined, signal);
+}
+
+export function getWorker(token: string, workerId: string, signal?: AbortSignal): Promise<WorkerDetail> {
+  return request<WorkerDetail>(token, "GET", `/workers/${encodeURIComponent(workerId)}`, undefined, signal);
+}
+
+export function updateWorker(
+  token: string,
+  workerId: string,
+  body: {
+    lastName: string;
+    firstName: string;
+    middleName: string | null;
+    displayName: string | null;
+    isActive: boolean;
+  },
+): Promise<void> {
+  return requestVoid(token, "PUT", `/workers/${encodeURIComponent(workerId)}`, body);
+}
+
+export function deleteWorker(token: string, workerId: string): Promise<void> {
+  return requestVoid(token, "DELETE", `/workers/${encodeURIComponent(workerId)}`);
 }
 
 export function addWorkingHoursRule(
