@@ -114,7 +114,14 @@ export function QueuePage() {
           <tbody>
             {rows.map((row) => (
               <tr key={row.bookingId} className={row.isOverdue ? "overdue" : undefined}>
-                <td>{new Date(row.startsAt).toLocaleString()}</td>
+                {/* `20-18`: this row can now be several consecutive slots claimed as one booking, so
+                    "when" is the run's own whole span - startsAt to endsAt - not just its first
+                    slot's own start. */}
+                <td>
+                  {new Date(row.startsAt).toLocaleString()}
+                  {" – "}
+                  {new Date(row.endsAt).toLocaleTimeString()}
+                </td>
                 <td>
                   <code>{row.calendarId.slice(0, 8)}</code>
                 </td>

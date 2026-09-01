@@ -39,7 +39,30 @@ type FormState = {
   cycleRestDays: string;
   cycleStartsAt: string;
   cycleEndsAt: string;
+  buffersCountTowardServiceDuration: boolean;
 };
+
+/** `20-18`: the fixed illustrative service length the arithmetic note is worked through with - the
+ * item's own 70-minute example, not any real service on this tenant's catalogue. The note exists so
+ * a tenant sees the *consequence* of the toggle in their own worker's numbers, not so it prices a
+ * particular service. */
+const ARITHMETIC_EXAMPLE_MINUTES = 70;
+
+/** The item's own worked arithmetic (`ConsecutiveRunFinder.ComputeSlotsNeeded`'s exact rule,
+ * mirrored here for display only - the server's own copy is the one that ever decides anything). */
+function slotsNeededFor(durationMinutes: number, slotMinutes: number, bufferMinutes: number, buffersCount: boolean): number {
+  if (buffersCount) {
+    return Math.ceil((durationMinutes + bufferMinutes) / (slotMinutes + bufferMinutes));
+  }
+
+  return Math.ceil(durationMinutes / slotMinutes);
+}
+
+function formatClock(totalMinutesFromMidnight: number): string {
+  const hours = Math.floor(totalMinutesFromMidnight / 60) % 24;
+  const minutes = totalMinutesFromMidnight % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -57,6 +80,9 @@ function defaultForm(): FormState {
     cycleRestDays: "2",
     cycleStartsAt: "09:00",
     cycleEndsAt: "18:00",
+    // Matches WorkerSchedule.BuffersCountTowardServiceDuration's own default - the author's own
+    // stated default, "перерывы включаются в групповой слот".
+    buffersCountTowardServiceDuration: true,
   };
 }
 
@@ -72,6 +98,7 @@ function formFrom(schedule: WorkerSchedule): FormState {
     cycleRestDays: schedule.cycleRestDays === null ? "2" : String(schedule.cycleRestDays),
     cycleStartsAt: schedule.cycleStartsAt ?? "09:00",
     cycleEndsAt: schedule.cycleEndsAt ?? "18:00",
+    buffersCountTowardServiceDuration: schedule.buffersCountTowardServiceDuration,
   };
 }
 
@@ -141,6 +168,7 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
         bufferMinutes: Number(form.bufferMinutes),
         horizonDays: Number(form.horizonDays),
         materializeFrom: form.materializeFrom,
+        buffersCountTowardServiceDuration: form.buffersCountTowardServiceDuration,
       });
       setExisting(saved);
       setForm(formFrom(saved));
@@ -259,7 +287,9 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
           onChange={(event) => setForm({ ...form, slotMinutes: event.target.value })}
           required
         />
-        <p className="muted">A service longer than this is not offered for this worker, until per-service grids exist.</p>
+        {/* `20-18`: `20-14`'s own interim rule - a longer service simply was not offered - is gone.
+            A service longer than one slot is now several consecutive slots claimed as one booking. */}
+        <p className="muted">A service longer than this needs more than one slot, claimed together as one booking.</p>
 
         <label htmlFor="schedule-buffer">Buffer between slots (minutes)</label>
         <input
@@ -269,6 +299,39 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
           value={form.bufferMinutes}
           onChange={(event) => setForm({ ...form, bufferMinutes: event.target.value })}
         />
+
+        <label>
+          <input
+            type="checkbox"
+            checked={form.buffersCountTowardServiceDuration}
+            onChange={(event) => setForm({ ...form, buffersCountTowardServiceDuration: event.target.checked })}
+          />{" "}
+          Перерывы внутри длинной записи считаются рабочим временем
+        </label>
+        {(() => {
+          const slotMinutes = Number(form.slotMinutes);
+          const bufferMinutes = Number(form.bufferMinutes);
+          if (!Number.isFinite(slotMinutes) || slotMinutes <= 0 || !Number.isFinite(bufferMinutes) || bufferMinutes < 0) {
+            return null;
+          }
+
+          const slotsNeeded = slotsNeededFor(
+            ARITHMETIC_EXAMPLE_MINUTES,
+            slotMinutes,
+            bufferMinutes,
+            form.buffersCountTowardServiceDuration,
+          );
+          const spanMinutes = slotsNeeded * slotMinutes + (slotsNeeded - 1) * bufferMinutes;
+          const exampleStart = 12 * 60; // 12:00, the item's own illustrative anchor.
+          const slotWord = slotsNeeded === 1 ? "слот" : slotsNeeded < 5 ? "слота" : "слотов";
+
+          return (
+            <p className="muted">
+              При таких числах: услуга {ARITHMETIC_EXAMPLE_MINUTES} мин займёт {slotsNeeded} {slotWord}, {formatClock(exampleStart)}–
+              {formatClock(exampleStart + spanMinutes)}.
+            </p>
+          );
+        })()}
 
         <label htmlFor="schedule-horizon">Horizon (days ahead kept generated)</label>
         <input

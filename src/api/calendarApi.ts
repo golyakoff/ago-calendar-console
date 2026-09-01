@@ -83,6 +83,13 @@ export interface WorkerSchedule {
   materializeFrom: string;
   createdAt: string;
   updatedAt: string;
+  /**
+   * `20-18`: whether a multi-slot booking's own internal buffers count toward satisfying a
+   * service's duration, or only toward the run's physical span - see
+   * `Ago.Calendar.Domain.WorkerSchedule.BuffersCountTowardServiceDuration`'s own remarks for the
+   * arithmetic this decides between. Defaults `true` server-side.
+   */
+  buffersCountTowardServiceDuration: boolean;
 }
 
 export interface ConfiguredService {
@@ -169,6 +176,13 @@ export interface WorkerSlot {
   /** `20-12`'s own gate, reused. See `customerId` for how its own two null-reasons are told apart. */
   customerDisplayName: string | null;
   phone: string | null;
+  /**
+   * `20-18`: which booking this slot belongs to, null exactly when `status` is `"Available"` or
+   * `"Blocked"`. Two rows sharing this value are two slots of one multi-slot booking - this is what
+   * lets `WorkerSlotsPage` show them as the same booking without merging the rows themselves (a slot
+   * is still one row with one status).
+   */
+  bookingId: string | null;
 }
 
 /**
@@ -349,6 +363,7 @@ export function saveWorkerSchedule(
     bufferMinutes: number;
     horizonDays: number;
     materializeFrom: string;
+    buffersCountTowardServiceDuration: boolean;
   },
 ): Promise<WorkerSchedule> {
   return request<WorkerSchedule>(token, "PUT", `/workers/${encodeURIComponent(workerId)}/schedule`, body);
