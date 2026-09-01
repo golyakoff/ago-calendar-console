@@ -23,8 +23,22 @@ describe("the access screen", () => {
   beforeEach(() => {
     roles = [seededRole, dispatcherRole];
     operators = [
-      { operatorId: "op-owner", displayName: "Sam", isAccountOwner: true, roleIds: ["role-1"] },
-      { operatorId: "op-junior", displayName: "Robin", isAccountOwner: false, roleIds: [] },
+      {
+        operatorId: "op-owner",
+        displayName: "Sam",
+        isAccountOwner: true,
+        isInvited: false,
+        invitedEmail: null,
+        roleIds: ["role-1"],
+      },
+      {
+        operatorId: "op-junior",
+        displayName: "Robin",
+        isAccountOwner: false,
+        isInvited: false,
+        invitedEmail: null,
+        roleIds: [],
+      },
     ];
     requests = [];
 
@@ -52,6 +66,27 @@ describe("the access screen", () => {
           roles = [...roles, { roleId: "role-3", name: "No contact access", permissions: [] }];
           return Promise.resolve(
             new Response(JSON.stringify({ roleId: "role-3" }), {
+              status: 201,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
+        if (method === "POST" && target.endsWith("/operators")) {
+          const body = JSON.parse(bodyOf(init) || "null") as { displayName: string; email: string };
+          operators = [
+            ...operators,
+            {
+              operatorId: "op-invited",
+              displayName: body.displayName,
+              isAccountOwner: false,
+              isInvited: true,
+              invitedEmail: body.email,
+              roleIds: [],
+            },
+          ];
+          return Promise.resolve(
+            new Response(JSON.stringify({ operatorId: "op-invited" }), {
               status: 201,
               headers: { "Content-Type": "application/json" },
             }),
@@ -134,6 +169,75 @@ describe("the access screen", () => {
     await waitFor(() => {
       expect(
         requests.some((r) => r.method === "POST" && r.url.includes("op-junior") && r.url.includes("role-2")),
+      ).toBe(true);
+    });
+  });
+
+  it("invites a colleague by name and email, and shows them as Invited", async () => {
+    renderWithAuth(<AccessPage />);
+    await screen.findByText(/Robin/);
+
+    await userEvent.type(screen.getByPlaceholderText("Robin"), "Alex");
+    await userEvent.type(screen.getByPlaceholderText("robin@example.com"), "alex@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Invite a colleague" }));
+
+    await waitFor(() => {
+      const created = requests.find((r) => r.method === "POST" && r.url.endsWith("/operators"));
+      expect(created).toBeDefined();
+      expect(created?.body).toEqual({ displayName: "Alex", email: "alex@example.com" });
+    });
+
+    await screen.findByText(/Alex/);
+    const alexRow = screen.getByText(/Alex/).closest("tr");
+    expect(alexRow).not.toBeNull();
+    expect(alexRow?.textContent).toContain("Invited");
+    expect(alexRow?.textContent).toContain("alex@example.com");
+
+    // The form clears itself once the invite succeeds, ready for the next one.
+    expect(screen.getByPlaceholderText<HTMLInputElement>("Robin").value).toBe("");
+  });
+
+  it("never mentions linking, subjects or a second account anywhere on the screen", async () => {
+    renderWithAuth(<AccessPage />);
+    await screen.findByText(/Robin/);
+
+    const text = document.body.textContent ?? "";
+    expect(text.toLowerCase()).not.toContain("link");
+    expect(text.toLowerCase()).not.toContain("subject");
+    expect(text.toLowerCase()).not.toContain("second account");
+  });
+
+  it("shows Active for an operator who has already signed in", async () => {
+    renderWithAuth(<AccessPage />);
+    await screen.findByText(/Sam/);
+
+    const ownerRow = screen.getByText(/Sam/).closest("tr");
+    expect(ownerRow?.textContent).toContain("Active");
+  });
+
+  it("grants a role to an invited operator who has never signed in", async () => {
+    operators = [
+      ...operators,
+      {
+        operatorId: "op-invited",
+        displayName: "Alex",
+        isAccountOwner: false,
+        isInvited: true,
+        invitedEmail: "alex@example.com",
+        roleIds: [],
+      },
+    ];
+    renderWithAuth(<AccessPage />);
+    await screen.findByText(/Alex/);
+
+    const alexRow = screen.getByText(/Alex/).closest("tr");
+    const dispatcherCheckbox = Array.from(alexRow.querySelectorAll("input[type=checkbox]"))[1] as HTMLInputElement;
+    expect(dispatcherCheckbox.disabled).toBe(false);
+    await userEvent.click(dispatcherCheckbox);
+
+    await waitFor(() => {
+      expect(
+        requests.some((r) => r.method === "POST" && r.url.includes("op-invited") && r.url.includes("role-2")),
       ).toBe(true);
     });
   });

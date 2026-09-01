@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext.js";
 import {
   createRole,
   getOperators,
   getRoles,
   grantOperatorRole,
+  inviteOperator,
   revokeOperatorRole,
   type OperatorInfo,
   type Role,
@@ -25,6 +27,14 @@ import { errorMessage } from "./errorMessage.js";
  * because the button is hidden defensively - the server refuses it either way
  * (`Ago.Calendar.Domain.Operator`'s own invariant) - but because offering a control that always fails
  * would be a worse console, not a safer one.
+ *
+ * <b>`20-08`, adr/0088: "invite a colleague" is an addition to this screen, not a new one.</b> Two
+ * fields, name and email, and a status column reading Invited/Active straight off
+ * `OperatorInfo.isInvited`. The words "link", "subject" and "second account" appear nowhere here on
+ * purpose - the ADR's own wording is that the tenant never encounters that plumbing, only the
+ * ordinary invite-a-teammate flow every SaaS product already teaches. An invited row's role
+ * checkboxes render exactly like an active one's: nothing here checks `isInvited` before offering a
+ * grant, because the ADR is explicit that roles are grantable before a first sign-in.
  */
 const NON_CONTACT_TEMPLATE = {
   name: "No contact access",
@@ -37,6 +47,8 @@ export function AccessPage() {
   const [operators, setOperators] = useState<OperatorInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
 
   const reload = useCallback(
     async (signal?: AbortSignal) => {
@@ -83,6 +95,25 @@ export function AccessPage() {
     }
   };
 
+  const handleInvite = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (accessToken === null) {
+      return;
+    }
+
+    const displayName = inviteName.trim();
+    const email = inviteEmail.trim();
+    if (displayName === "" || email === "") {
+      return;
+    }
+
+    void run("invite-operator", async () => {
+      await inviteOperator(accessToken, { displayName, email });
+      setInviteName("");
+      setInviteEmail("");
+    });
+  };
+
   if (accessToken === null) {
     return null;
   }
@@ -123,10 +154,42 @@ export function AccessPage() {
 
       <section className="panel">
         <h2>Operators</h2>
+        <form
+          onSubmit={handleInvite}
+          style={{ display: "flex", gap: "0.5em", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "1em" }}
+        >
+          <label>
+            Name
+            <br />
+            <input
+              type="text"
+              value={inviteName}
+              disabled={busyKey !== null}
+              onChange={(event) => setInviteName(event.target.value)}
+              placeholder="Robin"
+            />
+          </label>
+          <label>
+            Email
+            <br />
+            <input
+              type="email"
+              value={inviteEmail}
+              disabled={busyKey !== null}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              placeholder="robin@example.com"
+            />
+          </label>
+          <button type="submit" disabled={busyKey !== null || inviteName.trim() === "" || inviteEmail.trim() === ""}>
+            Invite a colleague
+          </button>
+        </form>
+        <p className="muted">They will use the account they already sign in with.</p>
         <table>
           <thead>
             <tr>
               <th scope="col">Operator</th>
+              <th scope="col">Status</th>
               <th scope="col">Roles</th>
             </tr>
           </thead>
@@ -136,7 +199,14 @@ export function AccessPage() {
                 <td>
                   {operator.displayName}
                   {operator.isAccountOwner && <> · account owner</>}
+                  {operator.isInvited && operator.invitedEmail !== null && (
+                    <>
+                      <br />
+                      <span className="muted">{operator.invitedEmail}</span>
+                    </>
+                  )}
                 </td>
+                <td>{operator.isInvited ? "Invited" : "Active"}</td>
                 <td>
                   {roles.map((role) => {
                     const held = operator.roleIds.includes(role.roleId);

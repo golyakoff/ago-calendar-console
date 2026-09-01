@@ -148,6 +148,14 @@ export interface OperatorInfo {
    * button is hidden, but because the server refuses it either way; hiding it here just saves an
    * operator a round trip that would only ever fail. */
   isAccountOwner: boolean;
+  /** `20-08`, adr/0088: true until this operator's own first sign-in links a Keycloak subject to the
+   * row. Read directly off `Ago.Calendar.Contracts.OperatorResponse.IsInvited` - the console never
+   * infers this from anything else, and never renders the word "subject" to explain it. */
+  isInvited: boolean;
+  /** The address an invite was sent to, if this row was created that way - `null` for the account
+   * owner. Still present after `isInvited` flips to `false`; see the server's own
+   * `Operator.InvitedEmail` remarks for why it is kept rather than cleared. */
+  invitedEmail: string | null;
   roleIds: string[];
 }
 
@@ -421,6 +429,17 @@ export function createRole(
 
 export function getOperators(token: string, signal?: AbortSignal): Promise<OperatorInfo[]> {
   return request<OperatorInfo[]>(token, "GET", "/operators", undefined, signal);
+}
+
+/** `20-08`, adr/0088: the tenant's own "invite a colleague" - nothing but a display name and the
+ * address the console's own copy calls "the account they already sign in with". Creates an operator
+ * row with no Keycloak subject attached yet; a later sign-in under that email links it, never this
+ * call. */
+export function inviteOperator(
+  token: string,
+  body: { displayName: string; email: string },
+): Promise<{ operatorId: string }> {
+  return request<{ operatorId: string }>(token, "POST", "/operators", body);
 }
 
 export function grantOperatorRole(token: string, operatorId: string, roleId: string): Promise<void> {
