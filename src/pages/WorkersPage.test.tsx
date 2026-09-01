@@ -35,7 +35,6 @@ describe("the workers screen", () => {
         calendarId: "cal-1",
         name: "Main",
         timeZone: "Europe/Moscow",
-        bufferMinutes: 10,
         isPublished: true,
         workerIds: ["w1"],
         workingHours: [],
@@ -67,6 +66,18 @@ describe("the workers screen", () => {
         if (method === "GET" && target.endsWith("/workers")) {
           return Promise.resolve(
             new Response(JSON.stringify(workers), { status: 200, headers: { "Content-Type": "application/json" } }),
+          );
+        }
+
+        // `20-14`: the schedule section the worker card now renders while editing fires its own GET
+        // on mount. None of these tests care about the schedule, so every worker starts with none -
+        // the real server's own "not configured yet" answer.
+        if (method === "GET" && /\/workers\/[^/]+\/schedule$/.test(target)) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({ type: "configuration.no_schedule", detail: "No schedule yet." }),
+              { status: 404, headers: { "Content-Type": "application/problem+json" } },
+            ),
           );
         }
 

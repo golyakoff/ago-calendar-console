@@ -14,6 +14,7 @@ import {
 import { errorMessage } from "./errorMessage.js";
 import { WorkersTable } from "../components/WorkersTable.js";
 import { WorkerCard, type WorkerCardFields } from "../components/WorkerCard.js";
+import { WorkerScheduleSection } from "../components/WorkerScheduleSection.js";
 
 /**
  * `20-13`: the tenant's staff list, with real CRUD - the screen `POST /workers`-only console never
@@ -112,12 +113,16 @@ export function WorkersPage() {
               <button type="button" disabled={busy} onClick={() => setEditing(worker)}>
                 Edit
               </button>{" "}
+              {/* `20-14`: the schedule section lives inside the same edit card (WorkerCard's own
+                  children slot) rather than on a separate screen, so this is a named shortcut into
+                  the same place "Edit" opens - not a second form. */}
+              <button type="button" disabled={busy} onClick={() => setEditing(worker)}>
+                Schedule
+              </button>{" "}
               <button type="button" disabled={busy} onClick={() => setConfirmingDelete(worker)}>
                 Delete
               </button>{" "}
               <Link to={`/workers/${worker.workerId}/slots`}>Slots</Link>
-              {/* `20-14`'s schedule link arrives here too, as one more link in this same cell -
-                  absent until then, not broken (the item's own scope). */}
             </>
           )}
         />
@@ -163,13 +168,16 @@ export function WorkersPage() {
               )
             }
           >
-            {/* `20-15`: reached through WorkerCard's own children slot, only rendered in edit mode
-                (WorkerCard's own code) - there is nothing yet to show slots for on a worker that does
-                not exist. `20-14`'s schedule link arrives here too, as a second paragraph. */}
+            {/* `20-14`/`20-15`: both reached through WorkerCard's own children slot, only rendered in
+                edit mode - there is nothing yet to attach a schedule or show slots for on a worker
+                that does not exist yet. */}
             {editing !== "new" && (
-              <p>
-                <Link to={`/workers/${editing.workerId}/slots`}>View slots</Link>
-              </p>
+              <>
+                <WorkerScheduleSection workerId={editing.workerId} />
+                <p>
+                  <Link to={`/workers/${editing.workerId}/slots`}>View slots</Link>
+                </p>
+              </>
             )}
           </WorkerCard>
         </section>

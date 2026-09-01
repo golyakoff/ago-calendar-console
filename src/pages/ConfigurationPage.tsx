@@ -114,7 +114,7 @@ export function ConfigurationPage() {
         <ul>
           {configuration.calendars.map((calendar) => (
             <li key={calendar.calendarId}>
-              <strong>{calendar.name}</strong> · {calendar.timeZone} · buffer {calendar.bufferMinutes} min ·{" "}
+              <strong>{calendar.name}</strong> · {calendar.timeZone} ·{" "}
               {calendar.isPublished ? "published" : "not published"}
               <ul>
                 {calendar.workingHours.map((rule) => (
@@ -223,18 +223,17 @@ function CalendarForm({
   onSubmit,
 }: {
   disabled: boolean;
-  onSubmit: (body: { name: string; timeZone: string; bufferMinutes: number; publish: boolean }) => void;
+  onSubmit: (body: { name: string; timeZone: string; publish: boolean }) => void;
 }) {
   const [name, setName] = useState("");
   const [timeZone, setTimeZone] = useState("Europe/Moscow");
-  const [bufferMinutes, setBufferMinutes] = useState(10);
   const [publish, setPublish] = useState(true);
 
   return (
     <form
       onSubmit={(event: FormEvent) => {
         event.preventDefault();
-        onSubmit({ name, timeZone, bufferMinutes, publish });
+        onSubmit({ name, timeZone, publish });
         setName("");
       }}
     >
@@ -245,15 +244,6 @@ function CalendarForm({
       {/* An IANA zone id, never an offset: an offset is wrong for half the year in any zone that
           observes DST, and this value can never be changed once slots exist. */}
       <input id="calendar-zone" value={timeZone} onChange={(event) => setTimeZone(event.target.value)} required />
-
-      <label htmlFor="calendar-buffer">Buffer between visits (minutes)</label>
-      <input
-        id="calendar-buffer"
-        type="number"
-        min={0}
-        value={bufferMinutes}
-        onChange={(event) => setBufferMinutes(Number(event.target.value))}
-      />
 
       <label>
         <input type="checkbox" checked={publish} onChange={(event) => setPublish(event.target.checked)} /> Published

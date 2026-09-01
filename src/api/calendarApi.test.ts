@@ -33,7 +33,7 @@ describe("the calendar console API client", () => {
     const fetchMock = vi.mocked(globalThis.fetch);
 
     await getConfiguration(token);
-    await createCalendar(token, { name: "Main", timeZone: "Europe/Moscow", bufferMinutes: 10, publish: true });
+    await createCalendar(token, { name: "Main", timeZone: "Europe/Moscow", publish: true });
     await setAllowedOrigins(token, ["https://shop.example"]);
     await rejectBooking(token, "11111111-1111-1111-1111-111111111111");
 
