@@ -29,7 +29,6 @@ export interface ConfiguredCalendar {
   calendarId: string;
   name: string;
   timeZone: string;
-  bufferMinutes: number;
   isPublished: boolean;
   workerIds: string[];
   workingHours: WorkingHoursRule[];
@@ -58,6 +57,30 @@ export interface WorkerDetail {
    * moment it is `true`, nothing recomputes it again. */
   displayNameIsCustom: boolean;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * `20-14`: a worker's own schedule template. `kind` is the wire string `"Weekly"` or `"Cycle"` -
+ * mirrors `Ago.Calendar.Domain.ScheduleKind`'s own names, chosen over the numeric enum ordinal
+ * `System.Text.Json` would otherwise serialise a bare C# enum as. The five `cycle*` fields are
+ * populated only while `kind === "Cycle"`; `null` while `kind === "Weekly"`, the same
+ * populated-only-for-the-active-kind shape the server's own aggregate carries.
+ */
+export interface WorkerSchedule {
+  scheduleId: string;
+  workerId: string;
+  kind: "Weekly" | "Cycle";
+  cycleAnchor: string | null;
+  cycleWorkingDays: number | null;
+  cycleRestDays: number | null;
+  cycleStartsAt: string | null;
+  cycleEndsAt: string | null;
+  slotMinutes: number;
+  bufferMinutes: number;
+  horizonDays: number;
+  materializeFrom: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -191,7 +214,7 @@ export function setAllowedOrigins(token: string, origins: string[]): Promise<voi
 
 export function createCalendar(
   token: string,
-  body: { name: string; timeZone: string; bufferMinutes: number; publish: boolean },
+  body: { name: string; timeZone: string; publish: boolean },
 ): Promise<{ calendarId: string }> {
   return request<{ calendarId: string }>(token, "POST", "/calendars", body);
 }
@@ -199,7 +222,7 @@ export function createCalendar(
 export function updateCalendar(
   token: string,
   calendarId: string,
-  body: { name: string; bufferMinutes: number; publish: boolean },
+  body: { name: string; publish: boolean },
 ): Promise<void> {
   return requestVoid(token, "PUT", `/calendars/${encodeURIComponent(calendarId)}`, body);
 }
@@ -252,6 +275,33 @@ export function updateWorker(
 
 export function deleteWorker(token: string, workerId: string): Promise<void> {
   return requestVoid(token, "DELETE", `/workers/${encodeURIComponent(workerId)}`);
+}
+
+/** `20-14`. Rejects with `configuration.no_schedule` when the worker has none yet - the console
+ * renders that as the "create a schedule" form rather than as an error. */
+export function getWorkerSchedule(token: string, workerId: string, signal?: AbortSignal): Promise<WorkerSchedule> {
+  return request<WorkerSchedule>(token, "GET", `/workers/${encodeURIComponent(workerId)}/schedule`, undefined, signal);
+}
+
+/** `20-14`. Create-or-replace: the same call whether the worker has no schedule yet or already has
+ * one - see `WorkerSchedule`'s own remarks on the wire shape. */
+export function saveWorkerSchedule(
+  token: string,
+  workerId: string,
+  body: {
+    kind: "Weekly" | "Cycle";
+    cycleAnchor: string | null;
+    cycleWorkingDays: number | null;
+    cycleRestDays: number | null;
+    cycleStartsAt: string | null;
+    cycleEndsAt: string | null;
+    slotMinutes: number;
+    bufferMinutes: number;
+    horizonDays: number;
+    materializeFrom: string;
+  },
+): Promise<WorkerSchedule> {
+  return request<WorkerSchedule>(token, "PUT", `/workers/${encodeURIComponent(workerId)}/schedule`, body);
 }
 
 export function addWorkingHoursRule(

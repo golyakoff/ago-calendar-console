@@ -31,7 +31,6 @@ describe("the tenant setup screen", () => {
           calendarId: "cal-1",
           name: "Main",
           timeZone: "Europe/Moscow",
-          bufferMinutes: 10,
           isPublished: true,
           workerIds: ["w1"],
           workingHours: [],
@@ -85,7 +84,7 @@ describe("the tenant setup screen", () => {
     expect(snippet.textContent?.match(/<script/g)).toHaveLength(1);
   });
 
-  it("creates a calendar with an IANA zone and a buffer", async () => {
+  it("creates a calendar with an IANA zone", async () => {
     renderWithAuth(<ConfigurationPage />);
     await screen.findByLabelText("Calendar name");
 
@@ -98,7 +97,6 @@ describe("the tenant setup screen", () => {
       // A zone id, never an offset - an offset is wrong for half the year in any zone with DST, and
       // this value can never be changed once slots exist.
       timeZone: "Europe/Moscow",
-      bufferMinutes: 10,
       publish: true,
     });
   });

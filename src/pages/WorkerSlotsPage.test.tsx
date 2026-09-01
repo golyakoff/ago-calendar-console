@@ -25,7 +25,6 @@ describe("the materialised slot view", () => {
         // UTC, deliberately - so a slot's rendered local time is a fixed, assertable string instead
         // of depending on this test host's own tz database entry for a real zone.
         timeZone: "UTC",
-        bufferMinutes: 10,
         isPublished: true,
         workerIds: ["w1"],
         workingHours: [],
