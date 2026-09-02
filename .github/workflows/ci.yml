@@ -50,6 +50,37 @@ jobs:
           VITE_KEYCLOAK_CLIENT_ID: ago-calendar-console
         run: npm run build
 
+      - name: Install the UX gate's browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Rendered UX gate
+        # `15-11`. **Non-blocking on purpose, and this is a dated compromise rather than a setting.**
+        # The gate's first run against this repository found two real things: every one of the eight
+        # screens overflows the viewport at 375px (issue #22) and a handful of controls sit two to
+        # four pixels under WCAG's 24px minimum (issue #23). Neither is caused by this change; both
+        # were simply never measured before. Making the gate blocking today would make every pull
+        # request in this repository red for a defect it did not introduce, which trains people to
+        # ignore a red build - the opposite of what a gate is for.
+        #
+        # A step that always warns is its own hazard, so this is not a steady state: **when #22 and
+        # #23 close, delete this line.** Until then the failures are visible on every run rather than
+        # hidden behind an exemption list, and the screenshots below are produced either way.
+        continue-on-error: true
+        run: npm run ux-gate
+
+      - name: Upload UX gate screenshots
+        # Uploaded on failure too - a screenshot of the screen a failing assertion describes is the
+        # more useful artifact exactly when the gate is red. These are also, today, the only way to
+        # look at the workers, slots and re-cut screens at all: AGO Calendar is not deployed
+        # (`ago-root` `20-20`), and this gate renders them from source.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-gate-screenshots
+          path: ux-gate/screenshots/
+          retention-days: 30
+          if-no-files-found: warn
+
   # There is deliberately no publish-images job yet. `ago-console` has one because something deploys
   # its image; nothing deploys this one, and a job that pushed an image nobody pulls would be
   # ceremony that looks like infrastructure. It arrives with the deployment, modelled on
