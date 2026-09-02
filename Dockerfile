@@ -22,6 +22,22 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.31-alpine-slim
+# The base tag names the image nginx's own maintainers published, not the Alpine packages inside it
+# *today* - Alpine ships security fixes into its package repositories continuously, independently of
+# when a base image was last rebuilt from them. `ci.yml`'s Trivy scan caught exactly that drift on its
+# very first real run (2026-09-02): CVE-2026-14456 in this tag's frozen `libssl3`/`libcrypto3`,
+# `3.5.7-r0` installed against `3.5.8-r0` already published by Alpine. Neither `nginx:1.31-alpine-slim`
+# nor even the floating `nginx:alpine-slim` carried the fix - upstream had not rebuilt - so waiting was
+# not an option and ignoring it would have been a decision to ship a known-vulnerable image.
+#
+# `apk upgrade` reaches the live repository at build time, so this image stays current between nginx's
+# own rebuilds rather than only at the moment somebody edits this file. `--no-cache` skips the local
+# index (nothing here goes stale the way the base layer just did) without leaving `/var/cache/apk`
+# behind to bloat the image.
+#
+# This line existed in `ago-console`, `ago-widget` and `ago-landing` already; this Dockerfile was
+# copied from `ago-console`'s shape *before* it was added, and inherited the gap rather than the fix.
+RUN apk update && apk upgrade --no-cache
 # The commit this image is built from. Defaults to "unknown" rather than failing: a local
 # `docker build` to look at the output is legitimate, and it should say so out loud rather than
 # claim a commit.
