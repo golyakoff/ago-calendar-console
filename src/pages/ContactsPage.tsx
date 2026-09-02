@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext.js";
 import { getContacts, type Contact } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
+import { useStrings } from "../i18n/StringsContext.js";
 
 /**
  * `20-12`'s own new kind of screen: every customer lead card the tenant holds, in one plain table -
@@ -11,6 +12,7 @@ import { errorMessage } from "./errorMessage.js";
  */
 export function ContactsPage() {
   const { accessToken } = useAuth();
+  const strings = useStrings();
   const [contacts, setContacts] = useState<Contact[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,11 +27,11 @@ export function ContactsPage() {
         setError(null);
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(errorMessage(reason));
+          setError(errorMessage(reason, strings));
         }
       }
     },
-    [accessToken],
+    [accessToken, strings],
   );
 
   useEffect(() => {
@@ -44,32 +46,32 @@ export function ContactsPage() {
 
   return (
     <section className="panel">
-      <h2>Contacts</h2>
-      <p className="muted">Every customer who has ever booked with this tenant.</p>
+      <h2>{strings.contactsTitle}</h2>
+      <p className="muted">{strings.contactsDescription}</p>
 
       {error !== null && <p className="error">{error}</p>}
 
-      {contacts === null && error === null && <p className="muted">Loading…</p>}
+      {contacts === null && error === null && <p className="muted">{strings.loading}</p>}
 
-      {contacts !== null && contacts.length === 0 && <p className="muted">No customers yet.</p>}
+      {contacts !== null && contacts.length === 0 && <p className="muted">{strings.contactsEmpty}</p>}
 
       {contacts !== null && contacts.length > 0 && (
         <table>
           <thead>
             <tr>
-              <th scope="col">Phone</th>
-              <th scope="col">Name</th>
-              <th scope="col">Notes</th>
-              <th scope="col">No-shows</th>
-              <th scope="col">First seen</th>
-              <th scope="col">Last seen</th>
+              <th scope="col">{strings.contactsColumnPhone}</th>
+              <th scope="col">{strings.contactsColumnName}</th>
+              <th scope="col">{strings.contactsColumnNotes}</th>
+              <th scope="col">{strings.contactsColumnNoShows}</th>
+              <th scope="col">{strings.contactsColumnFirstSeen}</th>
+              <th scope="col">{strings.contactsColumnLastSeen}</th>
             </tr>
           </thead>
           <tbody>
             {contacts.map((contact) => (
               <tr key={contact.customerId}>
                 <td>{contact.phone}</td>
-                <td>{contact.displayName ?? <span className="muted">not recorded</span>}</td>
+                <td>{contact.displayName ?? <span className="muted">{strings.notRecordedLabel}</span>}</td>
                 <td>{contact.notes ?? <span className="muted">—</span>}</td>
                 <td>{contact.noShowCount}</td>
                 <td>{new Date(contact.firstSeenAt).toLocaleDateString()}</td>
@@ -81,7 +83,7 @@ export function ContactsPage() {
       )}
 
       <button type="button" onClick={() => void reload()}>
-        Refresh
+        {strings.refreshButton}
       </button>
     </section>
   );

@@ -12,6 +12,8 @@ import {
   type Role,
 } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
+import { useStrings } from "../i18n/StringsContext.js";
+import type { ConsoleStrings } from "../i18n/strings.js";
 
 /**
  * `20-12`'s own surface gap: a tenant provisions a second role and moves an operator onto or off it.
@@ -36,13 +38,25 @@ import { errorMessage } from "./errorMessage.js";
  * checkboxes render exactly like an active one's: nothing here checks `isInvited` before offering a
  * grant, because the ADR is explicit that roles are grantable before a first sign-in.
  */
-const NON_CONTACT_TEMPLATE = {
-  name: "No contact access",
-  permissions: ["booking:confirm", "booking:reject", "booking:cancel", "booking:mark_no_show", "customer:edit", "calendar:configure"],
-};
+const NON_CONTACT_TEMPLATE_PERMISSIONS = [
+  "booking:confirm",
+  "booking:reject",
+  "booking:cancel",
+  "booking:mark_no_show",
+  "customer:edit",
+  "calendar:configure",
+];
+
+/** The role's own name is locale-dependent (`strings.addRoleTemplateName`), not a module-level
+ * constant like the permission set above - `strings.ts`'s own header explains why this console's
+ * own chosen name for a role it creates counts as chrome, translated the same as any button label. */
+function nonContactTemplate(strings: ConsoleStrings) {
+  return { name: strings.addRoleTemplateName, permissions: NON_CONTACT_TEMPLATE_PERMISSIONS };
+}
 
 export function AccessPage() {
   const { accessToken } = useAuth();
+  const strings = useStrings();
   const [roles, setRoles] = useState<Role[] | null>(null);
   const [operators, setOperators] = useState<OperatorInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,11 +80,11 @@ export function AccessPage() {
         setError(null);
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(errorMessage(reason));
+          setError(errorMessage(reason, strings));
         }
       }
     },
-    [accessToken],
+    [accessToken, strings],
   );
 
   useEffect(() => {
@@ -89,7 +103,7 @@ export function AccessPage() {
       await action();
       await reload();
     } catch (reason) {
-      setError(errorMessage(reason));
+      setError(errorMessage(reason, strings));
     } finally {
       setBusyKey(null);
     }
@@ -119,15 +133,17 @@ export function AccessPage() {
   }
 
   if (roles === null || operators === null) {
-    return error === null ? <p className="muted">Loading…</p> : <p className="error">{error}</p>;
+    return error === null ? <p className="muted">{strings.loading}</p> : <p className="error">{error}</p>;
   }
+
+  const template = nonContactTemplate(strings);
 
   return (
     <div className="stack">
       {error !== null && <p className="error">{error}</p>}
 
       <section className="panel">
-        <h2>Roles</h2>
+        <h2>{strings.rolesTitle}</h2>
         <ul>
           {roles.map((role) => (
             <li key={role.roleId}>
@@ -139,58 +155,53 @@ export function AccessPage() {
           type="button"
           disabled={busyKey !== null}
           onClick={() =>
-            void run("create-role", () =>
-              createRole(accessToken, { name: NON_CONTACT_TEMPLATE.name, permissions: NON_CONTACT_TEMPLATE.permissions }),
-            )
+            void run("create-role", () => createRole(accessToken, { name: template.name, permissions: template.permissions }))
           }
         >
-          Add a role without contact access
+          {strings.addRoleButton}
         </button>
-        <p className="muted">
-          Grants everything the seeded role does except reading a customer&rsquo;s phone, name and
-          notes - a receptionist who works the queue but should not see contact details.
-        </p>
+        <p className="muted">{strings.addRoleDescription}</p>
       </section>
 
       <section className="panel">
-        <h2>Operators</h2>
+        <h2>{strings.operatorsTitle}</h2>
         <form
           onSubmit={handleInvite}
           style={{ display: "flex", gap: "0.5em", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "1em" }}
         >
           <label>
-            Name
+            {strings.nameFieldLabel}
             <br />
             <input
               type="text"
               value={inviteName}
               disabled={busyKey !== null}
               onChange={(event) => setInviteName(event.target.value)}
-              placeholder="Robin"
+              placeholder={strings.invitePlaceholderName}
             />
           </label>
           <label>
-            Email
+            {strings.emailFieldLabel}
             <br />
             <input
               type="email"
               value={inviteEmail}
               disabled={busyKey !== null}
               onChange={(event) => setInviteEmail(event.target.value)}
-              placeholder="robin@example.com"
+              placeholder={strings.invitePlaceholderEmail}
             />
           </label>
           <button type="submit" disabled={busyKey !== null || inviteName.trim() === "" || inviteEmail.trim() === ""}>
-            Invite a colleague
+            {strings.inviteButton}
           </button>
         </form>
-        <p className="muted">They will use the account they already sign in with.</p>
+        <p className="muted">{strings.inviteNote}</p>
         <table>
           <thead>
             <tr>
-              <th scope="col">Operator</th>
-              <th scope="col">Status</th>
-              <th scope="col">Roles</th>
+              <th scope="col">{strings.accessColumnOperator}</th>
+              <th scope="col">{strings.accessColumnStatus}</th>
+              <th scope="col">{strings.accessColumnRoles}</th>
             </tr>
           </thead>
           <tbody>
@@ -198,7 +209,7 @@ export function AccessPage() {
               <tr key={operator.operatorId}>
                 <td>
                   {operator.displayName}
-                  {operator.isAccountOwner && <> · account owner</>}
+                  {operator.isAccountOwner && <>{strings.accountOwnerSuffix}</>}
                   {operator.isInvited && operator.invitedEmail !== null && (
                     <>
                       <br />
@@ -206,7 +217,7 @@ export function AccessPage() {
                     </>
                   )}
                 </td>
-                <td>{operator.isInvited ? "Invited" : "Active"}</td>
+                <td>{operator.isInvited ? strings.invitedStatusLabel : strings.activeLabel}</td>
                 <td>
                   {roles.map((role) => {
                     const held = operator.roleIds.includes(role.roleId);

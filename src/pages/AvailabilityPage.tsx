@@ -7,6 +7,8 @@ import {
   type TenantConfiguration,
 } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
+import { useStrings } from "../i18n/StringsContext.js";
+import type { ConsoleStrings } from "../i18n/strings.js";
 
 /**
  * `20-02`'s two manual edits, given the surface `20-06` owes them: "this worker is closed on this
@@ -28,6 +30,7 @@ import { errorMessage } from "./errorMessage.js";
  */
 export function AvailabilityPage() {
   const { accessToken } = useAuth();
+  const strings = useStrings();
   const [configuration, setConfiguration] = useState<TenantConfiguration | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -43,11 +46,11 @@ export function AvailabilityPage() {
         setConfiguration(await getConfiguration(accessToken, signal));
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(errorMessage(reason));
+          setError(errorMessage(reason, strings));
         }
       }
     },
-    [accessToken],
+    [accessToken, strings],
   );
 
   useEffect(() => {
@@ -64,7 +67,7 @@ export function AvailabilityPage() {
       await action();
       setMessage(done);
     } catch (reason) {
-      setError(errorMessage(reason));
+      setError(errorMessage(reason, strings));
     } finally {
       setBusy(false);
     }
@@ -75,7 +78,7 @@ export function AvailabilityPage() {
   }
 
   if (configuration === null) {
-    return error === null ? <p className="muted">Loading…</p> : <p className="error">{error}</p>;
+    return error === null ? <p className="muted">{strings.loading}</p> : <p className="error">{error}</p>;
   }
 
   const workersWithCalendars = configuration.workers
@@ -88,7 +91,7 @@ export function AvailabilityPage() {
     );
 
   if (workersWithCalendars.length === 0) {
-    return <p className="muted">No worker is on a calendar yet, so there are no days to edit.</p>;
+    return <p className="muted">{strings.availabilityNoWorkersNote}</p>;
   }
 
   return (
@@ -97,11 +100,12 @@ export function AvailabilityPage() {
       {error !== null && <p className="error">{error}</p>}
 
       <DayForm
-        title="Close a day"
-        description="Removes every free slot on that day and leaves one blocking row in their place, so the next materialisation run does not quietly refill it."
-        submitLabel="Close the day"
+        title={strings.closeDayTitle}
+        description={strings.closeDayDescription}
+        submitLabel={strings.closeDayButton}
         workers={workersWithCalendars}
         disabled={busy}
+        strings={strings}
         onSubmit={(selection) =>
           void run(
             () =>
@@ -110,17 +114,18 @@ export function AvailabilityPage() {
                 workerId: selection.workerId,
                 localDate: selection.localDate,
               }),
-            "The day is closed.",
+            strings.closeDayDoneMessage,
           )
         }
       />
 
       <DayForm
-        title="Change a day's hours"
-        description="Regenerates the whole day between the new wall-clock times, so a hand-edited day has the same shape - buffer included - as a generated one."
-        submitLabel="Apply the new hours"
+        title={strings.changeDayHoursTitle}
+        description={strings.changeDayHoursDescription}
+        submitLabel={strings.applyNewHoursButton}
         workers={workersWithCalendars}
         disabled={busy}
+        strings={strings}
         withTimes
         onSubmit={(selection) =>
           void run(
@@ -132,7 +137,7 @@ export function AvailabilityPage() {
                 opensAt: selection.opensAt,
                 closesAt: selection.closesAt,
               }),
-            "The day's hours were changed.",
+            strings.changeDayHoursDoneMessage,
           )
         }
       />
@@ -154,6 +159,7 @@ function DayForm({
   submitLabel,
   workers,
   disabled,
+  strings,
   withTimes = false,
   onSubmit,
 }: {
@@ -162,6 +168,7 @@ function DayForm({
   submitLabel: string;
   workers: { worker: { workerId: string; displayName: string }; calendar: { calendarId: string; name: string } }[];
   disabled: boolean;
+  strings: ConsoleStrings;
   withTimes?: boolean;
   onSubmit: (selection: DaySelection) => void;
 }) {
@@ -189,7 +196,7 @@ function DayForm({
           });
         }}
       >
-        <label htmlFor={`${fieldId}-worker`}>Worker</label>
+        <label htmlFor={`${fieldId}-worker`}>{strings.workerFieldLabel}</label>
         <select id={`${fieldId}-worker`} value={workerId} onChange={(event) => setWorkerId(event.target.value)}>
           {workers.map((pair) => (
             <option key={pair.worker.workerId} value={pair.worker.workerId}>
@@ -198,7 +205,7 @@ function DayForm({
           ))}
         </select>
 
-        <label htmlFor={`${fieldId}-date`}>Day</label>
+        <label htmlFor={`${fieldId}-date`}>{strings.dayFieldLabel}</label>
         {/* The shop's own business day, in the calendar's zone - not the reader's. */}
         <input
           id={`${fieldId}-date`}
@@ -210,10 +217,10 @@ function DayForm({
 
         {withTimes && (
           <>
-            <label htmlFor={`${fieldId}-opens`}>Opens</label>
+            <label htmlFor={`${fieldId}-opens`}>{strings.opensFieldLabel}</label>
             <input id={`${fieldId}-opens`} type="time" value={opensAt} onChange={(event) => setOpensAt(event.target.value)} />
 
-            <label htmlFor={`${fieldId}-closes`}>Closes</label>
+            <label htmlFor={`${fieldId}-closes`}>{strings.closesFieldLabel}</label>
             <input id={`${fieldId}-closes`} type="time" value={closesAt} onChange={(event) => setClosesAt(event.target.value)} />
           </>
         )}

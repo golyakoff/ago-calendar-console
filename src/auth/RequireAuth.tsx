@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthContext.js";
+import { useStrings } from "../i18n/StringsContext.js";
 
 /**
  * Renders a sign-in prompt instead of the page when nobody is signed in.
@@ -15,21 +16,19 @@ import { useAuth } from "./AuthContext.js";
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { accessToken, isLoading, signIn } = useAuth();
+  const strings = useStrings();
 
   if (isLoading) {
-    return <p className="muted">Checking your session…</p>;
+    return <p className="muted">{strings.checkingSession}</p>;
   }
 
   if (accessToken === null) {
     return (
       <section className="panel">
-        <h2>Sign in</h2>
-        <p className="muted">
-          This console signs in through the same Keycloak realm AGO Chat uses. Signing in there does
-          not by itself make you an operator here - AGO Calendar keeps its own operators.
-        </p>
+        <h2>{strings.signInTitle}</h2>
+        <p className="muted">{strings.signInDescription}</p>
         <button type="button" onClick={signIn}>
-          Sign in with Keycloak
+          {strings.signInButton}
         </button>
       </section>
     );

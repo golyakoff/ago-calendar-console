@@ -15,6 +15,7 @@ import { errorMessage } from "./errorMessage.js";
 import { WorkersTable } from "../components/WorkersTable.js";
 import { WorkerCard, type WorkerCardFields } from "../components/WorkerCard.js";
 import { WorkerScheduleSection } from "../components/WorkerScheduleSection.js";
+import { useStrings } from "../i18n/StringsContext.js";
 
 /**
  * `20-13`: the tenant's staff list, with real CRUD - the screen `POST /workers`-only console never
@@ -32,6 +33,7 @@ import { WorkerScheduleSection } from "../components/WorkerScheduleSection.js";
  */
 export function WorkersPage() {
   const { accessToken } = useAuth();
+  const strings = useStrings();
   const [workers, setWorkers] = useState<WorkerDetail[] | null>(null);
   const [calendars, setCalendars] = useState<ConfiguredCalendar[]>([]);
   const [services, setServices] = useState<ConfiguredService[]>([]);
@@ -61,11 +63,11 @@ export function WorkersPage() {
         setError(null);
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(errorMessage(reason));
+          setError(errorMessage(reason, strings));
         }
       }
     },
-    [accessToken],
+    [accessToken, strings],
   );
 
   useEffect(() => {
@@ -86,7 +88,7 @@ export function WorkersPage() {
       setEditing(null);
       setConfirmingDelete(null);
     } catch (reason) {
-      setError(errorMessage(reason));
+      setError(errorMessage(reason, strings));
     } finally {
       setBusy(false);
     }
@@ -97,7 +99,7 @@ export function WorkersPage() {
   }
 
   if (workers === null) {
-    return error === null ? <p className="muted">Loading…</p> : <p className="error">{error}</p>;
+    return error === null ? <p className="muted">{strings.loading}</p> : <p className="error">{error}</p>;
   }
 
   return (
@@ -105,42 +107,40 @@ export function WorkersPage() {
       {error !== null && <p className="error">{error}</p>}
 
       <section className="panel">
-        <h2>Workers</h2>
+        <h2>{strings.workersTitle}</h2>
         <WorkersTable
           workers={workers}
           renderRowActions={(worker) => (
             <>
               <button type="button" disabled={busy} onClick={() => setEditing(worker)}>
-                Edit
+                {strings.editButton}
               </button>{" "}
               {/* `20-14`: the schedule section lives inside the same edit card (WorkerCard's own
                   children slot) rather than on a separate screen, so this is a named shortcut into
                   the same place "Edit" opens - not a second form. */}
               <button type="button" disabled={busy} onClick={() => setEditing(worker)}>
-                Schedule
+                {strings.scheduleButton}
               </button>{" "}
               <button type="button" disabled={busy} onClick={() => setConfirmingDelete(worker)}>
-                Delete
+                {strings.deleteButton}
               </button>{" "}
-              <Link to={`/workers/${worker.workerId}/slots`}>Slots</Link>{" "}
-              <Link to={`/workers/${worker.workerId}/recut`}>Re-cut</Link>
+              <Link to={`/workers/${worker.workerId}/slots`}>{strings.slotsLinkLabel}</Link>{" "}
+              <Link to={`/workers/${worker.workerId}/recut`}>{strings.recutLinkLabel}</Link>
             </>
           )}
         />
 
         {editing === null && (
           <button type="button" disabled={busy || calendars.length === 0} onClick={() => setEditing("new")}>
-            Add worker
+            {strings.addWorkerButton}
           </button>
         )}
-        {calendars.length === 0 && editing === null && (
-          <p className="muted">Add a calendar first, on the Setup screen - a worker belongs to exactly one.</p>
-        )}
+        {calendars.length === 0 && editing === null && <p className="muted">{strings.workersNoCalendarNote}</p>}
       </section>
 
       {editing !== null && (
         <section className="panel">
-          <h2>{editing === "new" ? "New worker" : "Edit worker"}</h2>
+          <h2>{editing === "new" ? strings.newWorkerTitle : strings.editWorkerTitle}</h2>
           <WorkerCard
             mode={editing === "new" ? "create" : "edit"}
             worker={editing === "new" ? undefined : editing}
@@ -176,7 +176,7 @@ export function WorkersPage() {
               <>
                 <WorkerScheduleSection workerId={editing.workerId} />
                 <p>
-                  <Link to={`/workers/${editing.workerId}/slots`}>View slots</Link>
+                  <Link to={`/workers/${editing.workerId}/slots`}>{strings.viewSlotsLinkLabel}</Link>
                 </p>
               </>
             )}
@@ -187,19 +187,19 @@ export function WorkersPage() {
       {confirmingDelete !== null && (
         <section className="panel">
           <p>
-            Delete <strong>{confirmingDelete.displayName}</strong>? This only works for a worker who has
-            never been booked - one with a pending, confirmed or no-show visit is refused, and the
-            console shows the server&rsquo;s own reason if it is.
+            {strings.workersDeleteConfirmPrefix}
+            <strong>{confirmingDelete.displayName}</strong>
+            {strings.workersDeleteConfirmSuffix}
           </p>
           <button
             type="button"
             disabled={busy}
             onClick={() => void run(() => deleteWorker(accessToken, confirmingDelete.workerId))}
           >
-            Delete
+            {strings.deleteButton}
           </button>{" "}
           <button type="button" disabled={busy} onClick={() => setConfirmingDelete(null)}>
-            Cancel
+            {strings.cancelButton}
           </button>
         </section>
       )}

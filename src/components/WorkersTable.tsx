@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { WorkerDetail } from "../api/calendarApi.js";
+import { useStrings } from "../i18n/StringsContext.js";
 
 /**
  * `20-13`: the one table of every worker the tenant has - display name, activity, created, updated.
@@ -16,19 +17,21 @@ export interface WorkersTableProps {
 }
 
 export function WorkersTable({ workers, renderRowActions }: WorkersTableProps) {
+  const strings = useStrings();
+
   if (workers.length === 0) {
-    return <p className="muted">No workers yet.</p>;
+    return <p className="muted">{strings.workersEmpty}</p>;
   }
 
   return (
     <table>
       <thead>
         <tr>
-          <th scope="col">Name</th>
-          <th scope="col">Active</th>
-          <th scope="col">Created</th>
-          <th scope="col">Updated</th>
-          <th scope="col">Actions</th>
+          <th scope="col">{strings.workersColumnName}</th>
+          <th scope="col">{strings.workersColumnActive}</th>
+          <th scope="col">{strings.workersColumnCreated}</th>
+          <th scope="col">{strings.workersColumnUpdated}</th>
+          <th scope="col">{strings.workersColumnActions}</th>
         </tr>
       </thead>
       <tbody>
@@ -39,13 +42,13 @@ export function WorkersTable({ workers, renderRowActions }: WorkersTableProps) {
               {worker.firstName === "—" && (
                 <>
                   {" "}
-                  <span className="error" title="Backfilled from an old record - needs a real first name">
-                    (needs correction)
+                  <span className="error" title={strings.backfilledNameTooltip}>
+                    {strings.needsCorrectionLabel}
                   </span>
                 </>
               )}
             </td>
-            <td>{worker.isActive ? "Active" : "Inactive"}</td>
+            <td>{worker.isActive ? strings.activeLabel : strings.inactiveLabel}</td>
             <td>{formatDate(worker.createdAt)}</td>
             <td>{formatDate(worker.updatedAt)}</td>
             <td>{renderRowActions(worker)}</td>
