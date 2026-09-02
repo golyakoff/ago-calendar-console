@@ -171,7 +171,7 @@ describe("the worker schedule section", () => {
     renderWithAuth(<WorkerScheduleSection workerId="w1" />);
     await screen.findByRole("button", { name: "Create schedule" });
 
-    expect(screen.getByLabelText("Перерывы внутри длинной записи считаются рабочим временем")).toHaveProperty(
+    expect(screen.getByLabelText("Buffers inside a long booking count toward its service duration")).toHaveProperty(
       "checked",
       true,
     );
@@ -189,18 +189,18 @@ describe("the worker schedule section", () => {
     await userEvent.type(screen.getByLabelText("Buffer between slots (minutes)"), "10");
 
     // Buffers count (the default): two slots, ending 13:10.
-    await screen.findByText(/услуга 70 мин займёт 2 слота, 12:00–13:10/);
+    await screen.findByText(/a 70-minute service takes 2 slots, 12:00–13:10/);
 
     // Buffers do not count: three slots, ending 13:50.
-    await userEvent.click(screen.getByLabelText("Перерывы внутри длинной записи считаются рабочим временем"));
-    await screen.findByText(/услуга 70 мин займёт 3 слота, 12:00–13:50/);
+    await userEvent.click(screen.getByLabelText("Buffers inside a long booking count toward its service duration"));
+    await screen.findByText(/a 70-minute service takes 3 slots, 12:00–13:50/);
   });
 
   it("sends the buffers-count toggle's own value on save", async () => {
     renderWithAuth(<WorkerScheduleSection workerId="w1" />);
     await screen.findByRole("button", { name: "Create schedule" });
 
-    await userEvent.click(screen.getByLabelText("Перерывы внутри длинной записи считаются рабочим временем"));
+    await userEvent.click(screen.getByLabelText("Buffers inside a long booking count toward its service duration"));
     await userEvent.click(screen.getByRole("button", { name: "Create schedule" }));
 
     await waitFor(() => expect(requests).toHaveLength(1));

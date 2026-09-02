@@ -166,8 +166,8 @@ describe("the workers screen", () => {
     await screen.findByText("Alex Doe");
 
     await userEvent.click(screen.getByRole("button", { name: "Add worker" }));
-    await userEvent.type(screen.getByLabelText("Фамилия"), "Fox");
-    await userEvent.type(screen.getByLabelText("Имя"), "Robin");
+    await userEvent.type(screen.getByLabelText("Last name"), "Fox");
+    await userEvent.type(screen.getByLabelText("First name"), "Robin");
     await userEvent.click(screen.getByLabelText("Haircut"));
     await userEvent.click(screen.getByRole("button", { name: "Add worker" }));
 
@@ -214,7 +214,7 @@ describe("the workers screen", () => {
     await screen.findByText("Alex Doe");
 
     await userEvent.click(screen.getByRole("button", { name: "Edit" }));
-    const lastName = await screen.findByLabelText("Фамилия");
+    const lastName = await screen.findByLabelText("Last name");
     await userEvent.clear(lastName);
     await userEvent.type(lastName, "Sparrow");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));

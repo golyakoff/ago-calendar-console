@@ -11,6 +11,9 @@ import {
   type RecutResult,
 } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
+import { renderCustomer, renderPhone, slotStatusLabel } from "../i18n/format.js";
+import { useStrings } from "../i18n/StringsContext.js";
+import type { ConsoleStrings } from "../i18n/strings.js";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -46,6 +49,7 @@ type Decision = "Cancel" | "Keep";
 export function WorkerRecutPage() {
   const { workerId } = useParams<{ workerId: string }>();
   const { accessToken } = useAuth();
+  const strings = useStrings();
 
   const [from, setFrom] = useState(today);
   const [preview, setPreview] = useState<RecutPreviewResult | null>(null);
@@ -73,12 +77,12 @@ export function WorkerRecutPage() {
         setDecisions({});
       } catch (reason) {
         setPreview(null);
-        setError(errorMessage(reason));
+        setError(errorMessage(reason, strings));
       } finally {
         setBusy(false);
       }
     },
-    [accessToken, workerId, from],
+    [accessToken, workerId, from, strings],
   );
 
   const decidableBookings = (preview?.days ?? []).flatMap((day) => day.bookings.filter((b) => b.canDecide));
@@ -119,7 +123,7 @@ export function WorkerRecutPage() {
         setConfirming(false);
       }
 
-      setError(errorMessage(reason));
+      setError(errorMessage(reason, strings));
     } finally {
       setBusy(false);
     }
@@ -132,19 +136,13 @@ export function WorkerRecutPage() {
   return (
     <section className="panel">
       <p>
-        <Link to="/workers">← Workers</Link>
+        <Link to="/workers">← {strings.navWorkers}</Link>
       </p>
-      <h2>Re-cut schedule</h2>
-      <p className="muted">
-        Moves this worker&rsquo;s materialisation cursor back to a date that is already cut, and
-        regenerates every day in between from the current template. This deletes free slots and, for
-        any booking you choose to cancel, cancels it through the ordinary cancellation flow - the
-        customer is told, and the booking&rsquo;s own row survives as cancelled rather than being
-        deleted.
-      </p>
+      <h2>{strings.recutTitle}</h2>
+      <p className="muted">{strings.recutDescription}</p>
 
       <form onSubmit={(event) => void loadPreview(event)}>
-        <label htmlFor="recut-from">Re-cut from</label>
+        <label htmlFor="recut-from">{strings.recutFromFieldLabel}</label>
         <input
           id="recut-from"
           type="date"
@@ -153,7 +151,7 @@ export function WorkerRecutPage() {
           required
         />
         <button type="submit" disabled={busy}>
-          Preview
+          {strings.previewButton}
         </button>
       </form>
 
@@ -161,14 +159,25 @@ export function WorkerRecutPage() {
 
       {result !== null && (
         <section className="panel">
-          <h3>Done</h3>
+          <h3>{strings.recutDoneTitle}</h3>
           <p>
-            {result.recutDays.length} day(s) re-cut, {result.skippedDays.length} day(s) left untouched
-            because they held a kept booking. {result.slotsDeleted} free slot(s) deleted,{" "}
-            {result.slotsInserted} inserted, {result.bookingsCancelled} booking(s) cancelled.
+            {result.recutDays.length}
+            {strings.recutSummaryDaysRecutSuffix}
+            {result.skippedDays.length}
+            {strings.recutSummaryDaysLeftSuffix}
+            {result.slotsDeleted}
+            {strings.recutSummarySlotsDeletedSuffix}
+            {result.slotsInserted}
+            {strings.recutSummarySlotsInsertedSuffix}
+            {result.bookingsCancelled}
+            {strings.recutSummaryBookingsCancelledSuffix}
           </p>
           {result.skippedDays.length > 0 && (
-            <p className="muted">Left in the old grid: {result.skippedDays.join(", ")}.</p>
+            <p className="muted">
+              {strings.recutLeftInOldGridPrefix}
+              {result.skippedDays.join(", ")}
+              {strings.recutLeftInOldGridSuffix}
+            </p>
           )}
         </section>
       )}
@@ -176,7 +185,7 @@ export function WorkerRecutPage() {
       {preview !== null && !confirming && (
         <>
           {preview.days.every((day) => day.bookings.length === 0) && preview.days.every((day) => day.availableSlotsToDelete === 0) ? (
-            <p className="muted">Nothing in this range has been generated yet - a re-cut will simply cut it fresh.</p>
+            <p className="muted">{strings.recutNothingGeneratedNote}</p>
           ) : null}
 
           {preview.days.map((day) => (
@@ -184,6 +193,7 @@ export function WorkerRecutPage() {
               key={day.localDate}
               day={day}
               decisions={decisions}
+              strings={strings}
               onDecide={(bookingId, decision) =>
                 setDecisions((current) => ({ ...current, [bookingId]: decision }))
               }
@@ -192,31 +202,33 @@ export function WorkerRecutPage() {
 
           <p>
             <button type="button" disabled={busy || !everyDecisionMade} onClick={() => setConfirming(true)}>
-              Review &amp; confirm
+              {strings.reviewAndConfirmButton}
             </button>
           </p>
-          {!everyDecisionMade && (
-            <p className="muted">Choose cancel or keep for every booking above before continuing.</p>
-          )}
+          {!everyDecisionMade && <p className="muted">{strings.recutChooseDecisionNote}</p>}
         </>
       )}
 
       {preview !== null && confirming && (
         <section className="panel">
-          <h3>Confirm re-cut</h3>
+          <h3>{strings.recutConfirmTitle}</h3>
           <p>
-            This will clear and regenerate <strong>{daysToBeRecut.length}</strong> day(s), deleting{" "}
-            <strong>{availableSlotsToDelete}</strong> free slot(s) and cancelling{" "}
-            <strong>{bookingsToBeCancelled}</strong> booking(s). <strong>{daysToBeSkipped.length}</strong>{" "}
-            day(s) will be left exactly as they are because they hold a booking you chose to keep, or a
-            no-show that cannot be decided.
+            {strings.recutConfirmPrefix}
+            <strong>{daysToBeRecut.length}</strong>
+            {strings.recutConfirmDaysSuffix}
+            <strong>{availableSlotsToDelete}</strong>
+            {strings.recutConfirmSlotsSuffix}
+            <strong>{bookingsToBeCancelled}</strong>
+            {strings.recutConfirmBookingsSuffix}
+            <strong>{daysToBeSkipped.length}</strong>
+            {strings.recutConfirmSkippedSuffix}
           </p>
-          <p className="muted">This cannot be undone from this screen.</p>
+          <p className="muted">{strings.recutCannotBeUndoneNote}</p>
           <button type="button" disabled={busy} onClick={() => void handleConfirm()}>
-            Confirm re-cut
+            {strings.confirmRecutButton}
           </button>{" "}
           <button type="button" disabled={busy} onClick={() => setConfirming(false)}>
-            Back
+            {strings.backButton}
           </button>
         </section>
       )}
@@ -231,10 +243,12 @@ function dayIsKept(day: RecutDayPreview, decisions: Record<string, Decision>): b
 function RecutDayRow({
   day,
   decisions,
+  strings,
   onDecide,
 }: {
   day: RecutDayPreview;
   decisions: Record<string, Decision>;
+  strings: ConsoleStrings;
   onDecide: (bookingId: string, decision: Decision) => void;
 }) {
   const kept = dayIsKept(day, decisions);
@@ -242,17 +256,21 @@ function RecutDayRow({
   return (
     <section className="panel">
       <h4>
-        {day.localDate} {kept && <span className="muted">(will be left untouched)</span>}
+        {day.localDate} {kept && <span className="muted">{strings.recutDayKeptNote}</span>}
       </h4>
-      <p className="muted">{day.availableSlotsToDelete} free slot(s) would be deleted if this day is re-cut.</p>
+      <p className="muted">
+        {day.availableSlotsToDelete}
+        {strings.recutDaySlotsToDeleteSuffix}
+      </p>
 
-      {day.bookings.length === 0 && <p className="muted">No bookings on this day.</p>}
+      {day.bookings.length === 0 && <p className="muted">{strings.recutNoBookingsNote}</p>}
 
       {day.bookings.map((booking) => (
         <RecutBookingRow
           key={booking.bookingId}
           booking={booking}
           decision={decisions[booking.bookingId]}
+          strings={strings}
           onDecide={(decision) => onDecide(booking.bookingId, decision)}
         />
       ))}
@@ -263,10 +281,12 @@ function RecutDayRow({
 function RecutBookingRow({
   booking,
   decision,
+  strings,
   onDecide,
 }: {
   booking: RecutBookingPreview;
   decision: Decision | undefined;
+  strings: ConsoleStrings;
   onDecide: (decision: Decision) => void;
 }) {
   const groupName = `recut-decision-${booking.bookingId}`;
@@ -280,9 +300,9 @@ function RecutBookingRow({
         {new Date(booking.startsAt).toLocaleString()} – {new Date(booking.endsAt).toLocaleTimeString()}
       </span>{" "}
       <span>{booking.serviceName ?? <span className="muted">—</span>}</span>{" "}
-      <span>{renderCustomer(booking)}</span>{" "}
-      <span>{renderPhone(booking)}</span>{" "}
-      <span className="muted">({booking.status})</span>{" "}
+      <span>{renderCustomer(booking, strings)}</span>{" "}
+      <span>{renderPhone(booking, strings)}</span>{" "}
+      <span className="muted">({slotStatusLabel(booking.status, strings)})</span>{" "}
       {booking.canDecide ? (
         <span>
           <label>
@@ -293,7 +313,7 @@ function RecutBookingRow({
               checked={decision === "Cancel"}
               onChange={() => onDecide("Cancel")}
             />
-            Cancel
+            {strings.cancelDecisionLabel}
           </label>{" "}
           <label>
             <input
@@ -303,47 +323,12 @@ function RecutBookingRow({
               checked={decision === "Keep"}
               onChange={() => onDecide("Keep")}
             />
-            Keep
+            {strings.keepDecisionLabel}
           </label>
         </span>
       ) : (
-        <span className="muted">Already happened as a no-show - cannot be cancelled, its day is kept.</span>
+        <span className="muted">{strings.alreadyNoShowNote}</span>
       )}
     </div>
   );
-}
-
-/** The identical two-null-reasons rule `WorkerSlotsPage.renderCustomer` already established - every
- * row here holds a customer by construction, so only the permission reason ever applies, but the same
- * helper shape is kept rather than assuming that and simplifying it away. */
-function renderCustomer(booking: RecutBookingPreview) {
-  if (booking.customerId === null) {
-    return <span className="muted">—</span>;
-  }
-
-  if (booking.customerDisplayName === null) {
-    return (
-      <span className="muted" title="You don't have contact-visibility permission for this tenant.">
-        hidden
-      </span>
-    );
-  }
-
-  return booking.customerDisplayName;
-}
-
-function renderPhone(booking: RecutBookingPreview) {
-  if (booking.customerId === null) {
-    return <span className="muted">—</span>;
-  }
-
-  if (booking.phone === null) {
-    return (
-      <span className="muted" title="You don't have contact-visibility permission for this tenant.">
-        hidden
-      </span>
-    );
-  }
-
-  return booking.phone;
 }

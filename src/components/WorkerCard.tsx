@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import type { ConfiguredCalendar, ConfiguredService, WorkerDetail } from "../api/calendarApi.js";
+import { useStrings } from "../i18n/StringsContext.js";
 
 /**
  * `20-13`: one card, used for both creating a worker and editing one.
@@ -48,6 +49,7 @@ function derive(firstName: string, lastName: string): string {
 }
 
 export function WorkerCard({ mode, worker, calendars, services, busy, onSubmit, onCancel, children }: WorkerCardProps) {
+  const strings = useStrings();
   const [lastName, setLastName] = useState(worker?.lastName ?? "");
   const [firstName, setFirstName] = useState(worker?.firstName ?? "");
   const [middleName, setMiddleName] = useState(worker?.middleName ?? "");
@@ -67,7 +69,7 @@ export function WorkerCard({ mode, worker, calendars, services, busy, onSubmit, 
   }, [firstName, lastName, displayNameTouched]);
 
   if (mode === "create" && calendars.length === 0) {
-    return <p className="muted">Add a calendar first - a worker belongs to exactly one.</p>;
+    return <p className="muted">{strings.workerCardNoCalendarNote}</p>;
   }
 
   return (
@@ -86,7 +88,7 @@ export function WorkerCard({ mode, worker, calendars, services, busy, onSubmit, 
         });
       }}
     >
-      <label htmlFor="worker-last-name">Фамилия</label>
+      <label htmlFor="worker-last-name">{strings.lastNameFieldLabel}</label>
       <input
         id="worker-last-name"
         value={lastName}
@@ -94,7 +96,7 @@ export function WorkerCard({ mode, worker, calendars, services, busy, onSubmit, 
         required
       />
 
-      <label htmlFor="worker-first-name">Имя</label>
+      <label htmlFor="worker-first-name">{strings.firstNameFieldLabel}</label>
       <input
         id="worker-first-name"
         value={firstName}
@@ -102,10 +104,10 @@ export function WorkerCard({ mode, worker, calendars, services, busy, onSubmit, 
         required
       />
 
-      <label htmlFor="worker-middle-name">Отчество</label>
+      <label htmlFor="worker-middle-name">{strings.middleNameFieldLabel}</label>
       <input id="worker-middle-name" value={middleName} onChange={(event) => setMiddleName(event.target.value)} />
 
-      <label htmlFor="worker-display-name">Display name</label>
+      <label htmlFor="worker-display-name">{strings.displayNameFieldLabel}</label>
       <input
         id="worker-display-name"
         value={displayName}
@@ -114,15 +116,11 @@ export function WorkerCard({ mode, worker, calendars, services, busy, onSubmit, 
           setDisplayName(event.target.value);
         }}
       />
-      <p className="muted">
-        {displayNameTouched
-          ? "Set by hand - renaming фамилия or имя will not change it again."
-          : "Derived from имя and фамилия until you edit it."}
-      </p>
+      <p className="muted">{displayNameTouched ? strings.displayNameCustomNote : strings.displayNameDerivedNote}</p>
 
       {mode === "create" && (
         <>
-          <label htmlFor="worker-calendar">Calendar</label>
+          <label htmlFor="worker-calendar">{strings.calendarFieldLabel}</label>
           {/* One calendar per worker in v1 - a single select, not a multi-select, because the
               aggregate refuses a second and a multi-select would promise a shape it will not
               accept. */}
@@ -135,7 +133,7 @@ export function WorkerCard({ mode, worker, calendars, services, busy, onSubmit, 
           </select>
 
           <fieldset>
-            <legend>Services performed</legend>
+            <legend>{strings.servicesPerformedLegend}</legend>
             {services.map((service) => (
               <label key={service.serviceId}>
                 <input
@@ -158,16 +156,16 @@ export function WorkerCard({ mode, worker, calendars, services, busy, onSubmit, 
 
       {mode === "edit" && (
         <label>
-          <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active
+          <input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> {strings.activeLabel}
         </label>
       )}
 
       <div className="worker-card-actions">
         <button type="submit" disabled={busy}>
-          {mode === "create" ? "Add worker" : "Save"}
+          {mode === "create" ? strings.addWorkerButton : strings.saveButton}
         </button>
         <button type="button" disabled={busy} onClick={onCancel}>
-          Cancel
+          {strings.cancelButton}
         </button>
       </div>
 

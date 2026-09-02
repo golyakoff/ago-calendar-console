@@ -3,8 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.js";
 import { getConfiguration, getWorkerSlots, type TenantConfiguration, type WorkerSlot } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
-
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+import { useStrings } from "../i18n/StringsContext.js";
+import { renderCustomer, renderPhone, slotStatusLabel, weekdayNames } from "../i18n/format.js";
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -46,6 +46,7 @@ function defaultRange(): { from: string; to: string } {
 export function WorkerSlotsPage() {
   const { workerId } = useParams<{ workerId: string }>();
   const { accessToken } = useAuth();
+  const strings = useStrings();
   const [configuration, setConfiguration] = useState<TenantConfiguration | null>(null);
   const [slots, setSlots] = useState<WorkerSlot[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,11 +71,11 @@ export function WorkerSlotsPage() {
         setError(null);
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(errorMessage(reason));
+          setError(errorMessage(reason, strings));
         }
       }
     },
-    [accessToken, workerId, range],
+    [accessToken, workerId, range, strings],
   );
 
   useEffect(() => {
@@ -89,17 +90,21 @@ export function WorkerSlotsPage() {
 
   const worker = configuration?.workers.find((candidate) => candidate.workerId === workerId);
   const calendar = configuration?.calendars.find((candidate) => candidate.workerIds.includes(workerId));
+  const weekdays = weekdayNames(strings);
 
   return (
     <section className="panel">
       <p>
-        <Link to="/workers">← Workers</Link>
+        <Link to="/workers">← {strings.navWorkers}</Link>
       </p>
-      <h2>{worker !== undefined ? `${worker.displayName}’s slots` : "Slots"}</h2>
+      <h2>
+        {worker !== undefined
+          ? `${strings.slotsHeadingPrefix}${worker.displayName}${strings.slotsHeadingSuffix}`
+          : strings.slotsHeadingFallback}
+      </h2>
       <p className="muted">
-        What this worker&rsquo;s schedule actually produced - free, held, booked, cancelled, a no-show
-        or a deliberate block.
-        {calendar !== undefined && ` Times are local to ${calendar.timeZone}.`}
+        {strings.slotsDescription}
+        {calendar !== undefined && `${strings.slotsTimezoneNotePrefix}${calendar.timeZone}${strings.slotsTimezoneNoteSuffix}`}
       </p>
 
       <form
@@ -108,7 +113,7 @@ export function WorkerSlotsPage() {
           void reload();
         }}
       >
-        <label htmlFor="worker-slots-from">From</label>
+        <label htmlFor="worker-slots-from">{strings.fromFieldLabel}</label>
         <input
           id="worker-slots-from"
           type="date"
@@ -117,7 +122,7 @@ export function WorkerSlotsPage() {
           required
         />
 
-        <label htmlFor="worker-slots-to">To</label>
+        <label htmlFor="worker-slots-to">{strings.toFieldLabel}</label>
         <input
           id="worker-slots-to"
           type="date"
@@ -126,42 +131,42 @@ export function WorkerSlotsPage() {
           required
         />
 
-        <button type="submit">Refresh</button>
+        <button type="submit">{strings.refreshButton}</button>
       </form>
 
       {error !== null && <p className="error">{error}</p>}
 
-      {slots === null && error === null && <p className="muted">Loading…</p>}
+      {slots === null && error === null && <p className="muted">{strings.loading}</p>}
 
-      {slots !== null && slots.length === 0 && <p className="muted">No slots in this range.</p>}
+      {slots !== null && slots.length === 0 && <p className="muted">{strings.slotsEmpty}</p>}
 
       {slots !== null && slots.length > 0 && (
         <table>
           <thead>
             <tr>
-              <th scope="col">Date</th>
-              <th scope="col">Weekday</th>
-              <th scope="col">Time</th>
-              <th scope="col">Status</th>
-              <th scope="col">Service</th>
-              <th scope="col">Customer</th>
-              <th scope="col">Phone</th>
+              <th scope="col">{strings.slotsColumnDate}</th>
+              <th scope="col">{strings.slotsColumnWeekday}</th>
+              <th scope="col">{strings.slotsColumnTime}</th>
+              <th scope="col">{strings.slotsColumnStatus}</th>
+              <th scope="col">{strings.slotsColumnService}</th>
+              <th scope="col">{strings.slotsColumnCustomer}</th>
+              <th scope="col">{strings.slotsColumnPhone}</th>
             </tr>
           </thead>
           <tbody>
             {slots.map((slot, index) => (
               <tr key={slot.eventId} className={bookingGroupClassName(slots, index)}>
                 <td>{slot.localDate}</td>
-                <td>{WEEKDAYS[slot.weekday]}</td>
+                <td>{weekdays[slot.weekday]}</td>
                 <td>
                   {formatLocalTime(slot.startsAt, calendar?.timeZone)}
                   {"–"}
                   {formatLocalTime(slot.endsAt, calendar?.timeZone)}
                 </td>
-                <td>{slot.status}</td>
+                <td>{slotStatusLabel(slot.status, strings)}</td>
                 <td>{slot.serviceName ?? <span className="muted">—</span>}</td>
-                <td>{renderCustomer(slot)}</td>
-                <td>{renderPhone(slot)}</td>
+                <td>{renderCustomer(slot, strings)}</td>
+                <td>{renderPhone(slot, strings)}</td>
               </tr>
             ))}
           </tbody>
@@ -200,48 +205,6 @@ function bookingGroupClassName(slots: WorkerSlot[], index: number): string | und
   }
 
   return classNames.join(" ");
-}
-
-/** No customer at all (a free or blocked slot) reads as a plain dash - never confusable with
- * `hidden`, which only ever means "somebody holds this and I may not see who" (`renderPhone`'s own
- * remarks give the full two-state story). */
-function renderCustomer(slot: WorkerSlot) {
-  if (slot.customerId === null) {
-    return <span className="muted">—</span>;
-  }
-
-  if (slot.customerDisplayName === null) {
-    return (
-      <span className="muted" title="You don't have contact-visibility permission for this tenant.">
-        hidden
-      </span>
-    );
-  }
-
-  return slot.customerDisplayName;
-}
-
-/**
- * `20-12`'s own rule, restated for a screen that - unlike the pending queue - has rows with no
- * customer at all: `phone === null` is ambiguous by itself (no customer, or a customer this operator
- * may not see), and `customerId` is what tells the two apart. Rendering `hidden` for a genuinely free
- * slot would be a lie; rendering a blank dash for a withheld one would be indistinguishable from "no
- * phone recorded", which cannot happen (`Ago.Calendar.Domain.Customer.Phone` is never nullable).
- */
-function renderPhone(slot: WorkerSlot) {
-  if (slot.customerId === null) {
-    return <span className="muted">—</span>;
-  }
-
-  if (slot.phone === null) {
-    return (
-      <span className="muted" title="You don't have contact-visibility permission for this tenant.">
-        hidden
-      </span>
-    );
-  }
-
-  return slot.phone;
 }
 
 /** The business's own zone when known (from the calendar this worker is on); the reader's browser

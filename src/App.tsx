@@ -10,6 +10,8 @@ import { WorkersPage } from "./pages/WorkersPage.js";
 import { WorkerSlotsPage } from "./pages/WorkerSlotsPage.js";
 import { WorkerRecutPage } from "./pages/WorkerRecutPage.js";
 import { SignInCallbackPage } from "./pages/SignInCallbackPage.js";
+import { getStrings, resolveConsoleLocale } from "./i18n/resolve.js";
+import { StringsProvider, useStrings } from "./i18n/StringsContext.js";
 
 /**
  * <b>AGO Calendar's console, and deliberately not a page inside AGO Chat's.</b> `adr/0064` records
@@ -19,9 +21,24 @@ import { SignInCallbackPage } from "./pages/SignInCallbackPage.js";
  *
  * The framework is `adr/0023`'s React, reused unchanged. **`20-06` does not re-litigate that
  * choice**, and this file is where a drift to something else would have started.
+ *
+ * `11-15`: this is also where `<StringsProvider>` mounts, once, for the whole tree - `resolve.ts`'s
+ * own remarks explain why the value it is given (`getStrings(resolveConsoleLocale())`) is a hardcoded
+ * constant rather than anything read off this identity or a tenant record. "AGO Calendar" itself is
+ * never in the string table: a product's own brand name is a technical identifier, not interface
+ * chrome a translator should touch (`11-15`'s own backlog item names exactly this exemption).
  */
 export function App() {
+  return (
+    <StringsProvider value={getStrings(resolveConsoleLocale())}>
+      <AppShell />
+    </StringsProvider>
+  );
+}
+
+function AppShell() {
   const { accessToken, displayName, signOut } = useAuth();
+  const strings = useStrings();
 
   return (
     <div className="shell">
@@ -29,19 +46,19 @@ export function App() {
         <h1>AGO Calendar</h1>
         {accessToken !== null && (
           <nav>
-            <NavLink to="/">Queue</NavLink>
-            <NavLink to="/setup">Setup</NavLink>
-            <NavLink to="/workers">Workers</NavLink>
-            <NavLink to="/availability">Availability</NavLink>
-            <NavLink to="/contacts">Contacts</NavLink>
-            <NavLink to="/access">Access</NavLink>
+            <NavLink to="/">{strings.navQueue}</NavLink>
+            <NavLink to="/setup">{strings.navSetup}</NavLink>
+            <NavLink to="/workers">{strings.navWorkers}</NavLink>
+            <NavLink to="/availability">{strings.navAvailability}</NavLink>
+            <NavLink to="/contacts">{strings.navContacts}</NavLink>
+            <NavLink to="/access">{strings.navAccess}</NavLink>
           </nav>
         )}
         {accessToken !== null && (
           <div className="identity">
             <span>{displayName}</span>{" "}
             <button type="button" onClick={signOut}>
-              Sign out
+              {strings.signOut}
             </button>
           </div>
         )}

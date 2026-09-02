@@ -8,6 +8,7 @@ import {
   type PendingBooking,
 } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
+import { useStrings } from "../i18n/StringsContext.js";
 
 /**
  * The shared pending-bookings queue (`20-04`), and the three transitions an operator can make on it.
@@ -28,6 +29,7 @@ import { errorMessage } from "./errorMessage.js";
  */
 export function QueuePage() {
   const { accessToken } = useAuth();
+  const strings = useStrings();
   const [rows, setRows] = useState<PendingBooking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -43,11 +45,11 @@ export function QueuePage() {
         setError(null);
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(errorMessage(reason));
+          setError(errorMessage(reason, strings));
         }
       }
     },
-    [accessToken],
+    [accessToken, strings],
   );
 
   useEffect(() => {
@@ -74,7 +76,7 @@ export function QueuePage() {
       // successful reload clears the error, so setting the message before reloading wipes the one
       // sentence the operator needed - the action silently appearing to do nothing. Found by the
       // test that asserts the server's own wording is on screen.
-      const failure = errorMessage(reason);
+      const failure = errorMessage(reason, strings);
       await reload();
       setError(failure);
     } finally {
@@ -88,27 +90,24 @@ export function QueuePage() {
 
   return (
     <section className="panel">
-      <h2>Pending bookings</h2>
-      <p className="muted">
-        Everything here confirms itself at its deadline unless you reject it first. Ordered by
-        deadline, soonest first.
-      </p>
+      <h2>{strings.queueTitle}</h2>
+      <p className="muted">{strings.queueDescription}</p>
 
       {error !== null && <p className="error">{error}</p>}
 
-      {rows === null && <p className="muted">Loading…</p>}
+      {rows === null && <p className="muted">{strings.loading}</p>}
 
-      {rows !== null && rows.length === 0 && <p className="muted">Nothing is waiting.</p>}
+      {rows !== null && rows.length === 0 && <p className="muted">{strings.queueEmpty}</p>}
 
       {rows !== null && rows.length > 0 && (
         <table>
           <thead>
             <tr>
-              <th scope="col">When</th>
-              <th scope="col">Calendar</th>
-              <th scope="col">Phone</th>
-              <th scope="col">Deadline</th>
-              <th scope="col">Actions</th>
+              <th scope="col">{strings.queueColumnWhen}</th>
+              <th scope="col">{strings.queueColumnCalendar}</th>
+              <th scope="col">{strings.queueColumnPhone}</th>
+              <th scope="col">{strings.queueColumnDeadline}</th>
+              <th scope="col">{strings.queueColumnActions}</th>
             </tr>
           </thead>
           <tbody>
@@ -130,8 +129,8 @@ export function QueuePage() {
                       never a blank cell indistinguishable from "nothing recorded" - see
                       `PendingBooking.phone`'s own remarks for why the latter cannot actually occur. */}
                   {row.phone === null ? (
-                    <span className="muted" title="You don't have contact-visibility permission for this tenant.">
-                      hidden
+                    <span className="muted" title={strings.hiddenContactTooltip}>
+                      {strings.hiddenContactLabel}
                     </span>
                   ) : (
                     row.phone
@@ -139,17 +138,17 @@ export function QueuePage() {
                 </td>
                 <td>
                   {new Date(row.confirmationDeadline).toLocaleString()}
-                  {row.isOverdue && <strong> · overdue - the sweep is not running</strong>}
+                  {row.isOverdue && <strong>{strings.queueOverdueNote}</strong>}
                 </td>
                 <td>
                   <button type="button" disabled={busyId === row.bookingId} onClick={() => void act(row.bookingId, rejectBooking)}>
-                    Reject
+                    {strings.rejectButton}
                   </button>{" "}
                   <button type="button" disabled={busyId === row.bookingId} onClick={() => void act(row.bookingId, cancelBooking)}>
-                    Cancel
+                    {strings.cancelButton}
                   </button>{" "}
                   <button type="button" disabled={busyId === row.bookingId} onClick={() => void act(row.bookingId, markNoShow)}>
-                    No-show
+                    {strings.noShowButton}
                   </button>
                 </td>
               </tr>
@@ -159,7 +158,7 @@ export function QueuePage() {
       )}
 
       <button type="button" onClick={() => void reload()}>
-        Refresh
+        {strings.refreshButton}
       </button>
     </section>
   );

@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { CalendarApiError, getWorkerSchedule, saveWorkerSchedule, type WorkerSchedule } from "../api/calendarApi.js";
 import { useAuth } from "../auth/AuthContext.js";
 import { errorMessage } from "../pages/errorMessage.js";
+import { useStrings } from "../i18n/StringsContext.js";
+import type { ConsoleStrings } from "../i18n/strings.js";
 
 const DEFAULT_HORIZON_DAYS = 30;
 const MAX_HORIZON_DAYS = 180;
@@ -68,6 +70,17 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Russian's three-way plural (1 / 2-4 / 5+), the same threshold the pre-`11-15` code already used
+ * when this note was hardcoded Russian-only - `strings.ts`'s own remarks on `slotWordOne/Few/Many`
+ * have the full reasoning for why English fills all three fields rather than the interface offering
+ * only the two forms English happens to need. */
+function slotWord(strings: ConsoleStrings, count: number): string {
+  if (count === 1) {
+    return strings.slotWordOne;
+  }
+  return count < 5 ? strings.slotWordFew : strings.slotWordMany;
+}
+
 function defaultForm(): FormState {
   return {
     kind: "Weekly",
@@ -104,6 +117,7 @@ function formFrom(schedule: WorkerSchedule): FormState {
 
 export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) {
   const { accessToken } = useAuth();
+  const strings = useStrings();
   const [existing, setExisting] = useState<WorkerSchedule | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm());
   const [loading, setLoading] = useState(true);
@@ -132,13 +146,13 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
           setForm(defaultForm());
           setError(null);
         } else {
-          setError(errorMessage(reason));
+          setError(errorMessage(reason, strings));
         }
       } finally {
         setLoading(false);
       }
     },
-    [workerId, accessToken],
+    [workerId, accessToken, strings],
   );
 
   useEffect(() => {
@@ -173,7 +187,7 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
       setExisting(saved);
       setForm(formFrom(saved));
     } catch (reason) {
-      setError(errorMessage(reason));
+      setError(errorMessage(reason, strings));
     } finally {
       setBusy(false);
     }
@@ -182,8 +196,8 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
   if (loading) {
     return (
       <section className="worker-schedule">
-        <h3>Schedule</h3>
-        <p className="muted">Loading…</p>
+        <h3>{strings.scheduleSectionTitle}</h3>
+        <p className="muted">{strings.loading}</p>
       </section>
     );
   }
@@ -196,30 +210,25 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
 
   return (
     <section className="worker-schedule">
-      <h3>Schedule</h3>
-      {existing === null && <p className="muted">No schedule yet - this worker materialises nothing until one is saved.</p>}
+      <h3>{strings.scheduleSectionTitle}</h3>
+      {existing === null && <p className="muted">{strings.scheduleEmptyNote}</p>}
       {error !== null && <p className="error">{error}</p>}
 
       <form onSubmit={(event) => void handleSubmit(event)}>
-        <label htmlFor="schedule-kind">Template</label>
+        <label htmlFor="schedule-kind">{strings.templateFieldLabel}</label>
         <select
           id="schedule-kind"
           value={form.kind}
           onChange={(event) => setForm({ ...form, kind: event.target.value as "Weekly" | "Cycle" })}
         >
-          <option value="Weekly">Weekly (ordinary week)</option>
-          <option value="Cycle">Cycle (N days on, M days off)</option>
+          <option value="Weekly">{strings.weeklyTemplateOption}</option>
+          <option value="Cycle">{strings.cycleTemplateOption}</option>
         </select>
-        {switchingAwayFromCycle && (
-          <p className="muted">
-            Switching to Weekly clears the cycle settings on save. Already materialised days are untouched either
-            way.
-          </p>
-        )}
+        {switchingAwayFromCycle && <p className="muted">{strings.switchingToWeeklyNote}</p>}
 
         {form.kind === "Cycle" && (
           <>
-            <label htmlFor="schedule-cycle-anchor">Anchor date (first working day)</label>
+            <label htmlFor="schedule-cycle-anchor">{strings.cycleAnchorFieldLabel}</label>
             <input
               id="schedule-cycle-anchor"
               type="date"
@@ -228,7 +237,7 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
               required
             />
 
-            <label htmlFor="schedule-cycle-working">Working days</label>
+            <label htmlFor="schedule-cycle-working">{strings.cycleWorkingDaysFieldLabel}</label>
             <input
               id="schedule-cycle-working"
               type="number"
@@ -238,7 +247,7 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
               required
             />
 
-            <label htmlFor="schedule-cycle-rest">Rest days</label>
+            <label htmlFor="schedule-cycle-rest">{strings.cycleRestDaysFieldLabel}</label>
             <input
               id="schedule-cycle-rest"
               type="number"
@@ -247,12 +256,9 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
               onChange={(event) => setForm({ ...form, cycleRestDays: event.target.value })}
               required
             />
-            <p className="muted">
-              &ldquo;2 через 2&rdquo; is 2 working / 2 rest. &ldquo;Сутки через трое&rdquo; is 1 working / 3 rest, plus
-              the hours below - not a 24-hour window.
-            </p>
+            <p className="muted">{strings.cycleShiftPatternNote}</p>
 
-            <label htmlFor="schedule-cycle-starts">Opens</label>
+            <label htmlFor="schedule-cycle-starts">{strings.opensFieldLabel}</label>
             <input
               id="schedule-cycle-starts"
               type="time"
@@ -261,7 +267,7 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
               required
             />
 
-            <label htmlFor="schedule-cycle-ends">Closes</label>
+            <label htmlFor="schedule-cycle-ends">{strings.closesFieldLabel}</label>
             <input
               id="schedule-cycle-ends"
               type="time"
@@ -272,13 +278,9 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
           </>
         )}
 
-        {form.kind === "Weekly" && (
-          <p className="muted">
-            Weekly hours are set on the Setup screen&rsquo;s working-hours form, per day of the week.
-          </p>
-        )}
+        {form.kind === "Weekly" && <p className="muted">{strings.weeklyHoursNote}</p>}
 
-        <label htmlFor="schedule-slot">Slot length (minutes)</label>
+        <label htmlFor="schedule-slot">{strings.slotLengthFieldLabel}</label>
         <input
           id="schedule-slot"
           type="number"
@@ -289,9 +291,9 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
         />
         {/* `20-18`: `20-14`'s own interim rule - a longer service simply was not offered - is gone.
             A service longer than one slot is now several consecutive slots claimed as one booking. */}
-        <p className="muted">A service longer than this needs more than one slot, claimed together as one booking.</p>
+        <p className="muted">{strings.slotLengthNote}</p>
 
-        <label htmlFor="schedule-buffer">Buffer between slots (minutes)</label>
+        <label htmlFor="schedule-buffer">{strings.bufferFieldLabel}</label>
         <input
           id="schedule-buffer"
           type="number"
@@ -306,7 +308,7 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
             checked={form.buffersCountTowardServiceDuration}
             onChange={(event) => setForm({ ...form, buffersCountTowardServiceDuration: event.target.checked })}
           />{" "}
-          Перерывы внутри длинной записи считаются рабочим временем
+          {strings.bufferCountsTowardDurationLabel}
         </label>
         {(() => {
           const slotMinutes = Number(form.slotMinutes);
@@ -323,17 +325,18 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
           );
           const spanMinutes = slotsNeeded * slotMinutes + (slotsNeeded - 1) * bufferMinutes;
           const exampleStart = 12 * 60; // 12:00, the item's own illustrative anchor.
-          const slotWord = slotsNeeded === 1 ? "слот" : slotsNeeded < 5 ? "слота" : "слотов";
 
           return (
             <p className="muted">
-              При таких числах: услуга {ARITHMETIC_EXAMPLE_MINUTES} мин займёт {slotsNeeded} {slotWord}, {formatClock(exampleStart)}–
-              {formatClock(exampleStart + spanMinutes)}.
+              {strings.arithmeticExamplePrefix}
+              {ARITHMETIC_EXAMPLE_MINUTES}
+              {strings.arithmeticExampleUnitSuffix}
+              {slotsNeeded} {slotWord(strings, slotsNeeded)}, {formatClock(exampleStart)}–{formatClock(exampleStart + spanMinutes)}.
             </p>
           );
         })()}
 
-        <label htmlFor="schedule-horizon">Horizon (days ahead kept generated)</label>
+        <label htmlFor="schedule-horizon">{strings.horizonFieldLabel}</label>
         <input
           id="schedule-horizon"
           type="number"
@@ -345,11 +348,21 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
         {/* No client-side `max`: the cap is enforced server-side (WorkerSchedule.MaxHorizonDays), on
             purpose, so a direct API call cannot bypass it either - a browser-blocked submit with no
             visible reason would be worse UX than the server's own clear rejection below. */}
-        <p className="muted">Capped at {MAX_HORIZON_DAYS} days.</p>
+        <p className="muted">
+          {strings.horizonCapPrefix}
+          {MAX_HORIZON_DAYS}
+          {strings.horizonCapSuffix}
+        </p>
 
         <label htmlFor="schedule-materialize-from">
-          Don&rsquo;t generate before
-          {existing !== null && <span className="muted"> (cannot move earlier than {existing.materializeFrom})</span>}
+          {strings.materializeFromFieldLabel}
+          {existing !== null && (
+            <span className="muted">
+              {strings.materializeFromCannotMoveEarlierPrefix}
+              {existing.materializeFrom}
+              {strings.materializeFromCannotMoveEarlierSuffix}
+            </span>
+          )}
         </label>
         <input
           id="schedule-materialize-from"
@@ -364,14 +377,15 @@ export function WorkerScheduleSection({ workerId }: WorkerScheduleSectionProps) 
             is a separate, destructive screen with its own preview and confirmation. */}
         {existing !== null && (
           <p className="muted">
-            Need to fix days already cut under an old template? <Link to={`/workers/${workerId}/recut`}>Re-cut the schedule</Link>{" "}
-            instead of moving this date - it shows what would be deleted before anything is.
+            {strings.scheduleRecutNotePrefix}
+            <Link to={`/workers/${workerId}/recut`}>{strings.scheduleRecutLinkLabel}</Link>
+            {strings.scheduleRecutNoteSuffix}
           </p>
         )}
 
         <div className="worker-schedule-actions">
           <button type="submit" disabled={busy}>
-            {existing === null ? "Create schedule" : "Save schedule"}
+            {existing === null ? strings.createScheduleButton : strings.saveScheduleButton}
           </button>
         </div>
       </form>

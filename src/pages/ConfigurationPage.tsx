@@ -9,8 +9,9 @@ import {
   type TenantConfiguration,
 } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
-
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+import { useStrings } from "../i18n/StringsContext.js";
+import type { ConsoleStrings } from "../i18n/strings.js";
+import { weekdayNames } from "../i18n/format.js";
 
 /**
  * Tenant setup: calendars, services, working hours, and the embed's own allowed origins.
@@ -34,6 +35,7 @@ const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frid
  */
 export function ConfigurationPage() {
   const { accessToken } = useAuth();
+  const strings = useStrings();
   const [configuration, setConfiguration] = useState<TenantConfiguration | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,11 +51,11 @@ export function ConfigurationPage() {
         setError(null);
       } catch (reason) {
         if (!(reason instanceof DOMException && reason.name === "AbortError")) {
-          setError(errorMessage(reason));
+          setError(errorMessage(reason, strings));
         }
       }
     },
-    [accessToken],
+    [accessToken, strings],
   );
 
   useEffect(() => {
@@ -72,7 +74,7 @@ export function ConfigurationPage() {
       await action();
       await reload();
     } catch (reason) {
-      setError(errorMessage(reason));
+      setError(errorMessage(reason, strings));
     } finally {
       setBusy(false);
     }
@@ -83,8 +85,10 @@ export function ConfigurationPage() {
   }
 
   if (configuration === null) {
-    return error === null ? <p className="muted">Loading…</p> : <p className="error">{error}</p>;
+    return error === null ? <p className="muted">{strings.loading}</p> : <p className="error">{error}</p>;
   }
+
+  const days = weekdayNames(strings);
 
   return (
     <div className="stack">
@@ -92,34 +96,30 @@ export function ConfigurationPage() {
 
       <section className="panel">
         <h2>{configuration.tenantName}</h2>
-        <p className="muted">
-          Paste this on your own site. One tag: the chat widget and the booking flow arrive together.
-        </p>
-        <pre aria-label="Embed snippet">{embedSnippet(configuration.publicKey)}</pre>
+        <p className="muted">{strings.setupEmbedDescription}</p>
+        <pre aria-label={strings.setupEmbedSnippetAriaLabel}>{embedSnippet(configuration.publicKey)}</pre>
 
-        <h3>Approved page origins</h3>
-        <p className="muted">
-          A page may only embed your booking surface if its origin is listed here. Scheme, host and
-          port - no path.
-        </p>
+        <h3>{strings.setupOriginsTitle}</h3>
+        <p className="muted">{strings.setupOriginsDescription}</p>
         <OriginsForm
           origins={configuration.allowedOrigins}
           disabled={busy}
+          strings={strings}
           onSubmit={(origins) => void run(() => setAllowedOrigins(accessToken, origins))}
         />
       </section>
 
       <section className="panel">
-        <h2>Calendars</h2>
+        <h2>{strings.setupCalendarsTitle}</h2>
         <ul>
           {configuration.calendars.map((calendar) => (
             <li key={calendar.calendarId}>
               <strong>{calendar.name}</strong> · {calendar.timeZone} ·{" "}
-              {calendar.isPublished ? "published" : "not published"}
+              {calendar.isPublished ? strings.publishedLabel : strings.notPublishedLabel}
               <ul>
                 {calendar.workingHours.map((rule) => (
                   <li key={rule.ruleId}>
-                    {DAY_NAMES[rule.dayOfWeek]} {rule.startsAt}–{rule.endsAt} ·{" "}
+                    {days[rule.dayOfWeek]} {rule.startsAt}–{rule.endsAt} ·{" "}
                     {configuration.workers.find((worker) => worker.workerId === rule.workerId)?.displayName ??
                       rule.workerId}
                   </li>
@@ -130,31 +130,31 @@ export function ConfigurationPage() {
         </ul>
         <CalendarForm
           disabled={busy}
+          strings={strings}
           onSubmit={(body) => void run(() => createCalendar(accessToken, body))}
         />
       </section>
 
       <section className="panel">
-        <h2>Services</h2>
+        <h2>{strings.setupServicesTitle}</h2>
         <ul>
           {configuration.services.map((service) => (
             <li key={service.serviceId}>
-              {service.name} · {service.durationMinutes} min
+              {service.name} · {service.durationMinutes}
+              {strings.setupServiceMinutesSuffix}
             </li>
           ))}
         </ul>
-        <ServiceForm disabled={busy} onSubmit={(body) => void run(() => createService(accessToken, body))} />
+        <ServiceForm disabled={busy} strings={strings} onSubmit={(body) => void run(() => createService(accessToken, body))} />
       </section>
 
       <section className="panel">
-        <h2>Working hours</h2>
-        <p className="muted">
-          Wall clock in the calendar&rsquo;s own time zone - &ldquo;we open at nine&rdquo;, not an
-          instant. A shift that crosses midnight is two rules on two days.
-        </p>
+        <h2>{strings.setupWorkingHoursTitle}</h2>
+        <p className="muted">{strings.setupWorkingHoursDescription}</p>
         <WorkingHoursForm
           configuration={configuration}
           disabled={busy}
+          strings={strings}
           onSubmit={(body) => void run(() => addWorkingHoursRule(accessToken, body))}
         />
       </section>
@@ -181,10 +181,12 @@ function config() {
 function OriginsForm({
   origins,
   disabled,
+  strings,
   onSubmit,
 }: {
   origins: string[];
   disabled: boolean;
+  strings: ConsoleStrings;
   onSubmit: (origins: string[]) => void;
 }) {
   const [text, setText] = useState(origins.join("\n"));
@@ -203,7 +205,7 @@ function OriginsForm({
         );
       }}
     >
-      <label htmlFor="origins">One origin per line</label>
+      <label htmlFor="origins">{strings.setupOriginsFieldLabel}</label>
       <textarea
         id="origins"
         rows={3}
@@ -212,7 +214,7 @@ function OriginsForm({
         placeholder="https://shop.example"
       />
       <button type="submit" disabled={disabled}>
-        Save origins
+        {strings.setupSaveOriginsButton}
       </button>
     </form>
   );
@@ -220,9 +222,11 @@ function OriginsForm({
 
 function CalendarForm({
   disabled,
+  strings,
   onSubmit,
 }: {
   disabled: boolean;
+  strings: ConsoleStrings;
   onSubmit: (body: { name: string; timeZone: string; publish: boolean }) => void;
 }) {
   const [name, setName] = useState("");
@@ -237,20 +241,20 @@ function CalendarForm({
         setName("");
       }}
     >
-      <label htmlFor="calendar-name">Calendar name</label>
+      <label htmlFor="calendar-name">{strings.setupCalendarNameLabel}</label>
       <input id="calendar-name" value={name} onChange={(event) => setName(event.target.value)} required />
 
-      <label htmlFor="calendar-zone">IANA time zone</label>
+      <label htmlFor="calendar-zone">{strings.setupCalendarZoneLabel}</label>
       {/* An IANA zone id, never an offset: an offset is wrong for half the year in any zone that
           observes DST, and this value can never be changed once slots exist. */}
       <input id="calendar-zone" value={timeZone} onChange={(event) => setTimeZone(event.target.value)} required />
 
       <label>
-        <input type="checkbox" checked={publish} onChange={(event) => setPublish(event.target.checked)} /> Published
+        <input type="checkbox" checked={publish} onChange={(event) => setPublish(event.target.checked)} /> {strings.setupCalendarPublishedLabel}
       </label>
 
       <button type="submit" disabled={disabled}>
-        Add calendar
+        {strings.setupAddCalendarButton}
       </button>
     </form>
   );
@@ -258,9 +262,11 @@ function CalendarForm({
 
 function ServiceForm({
   disabled,
+  strings,
   onSubmit,
 }: {
   disabled: boolean;
+  strings: ConsoleStrings;
   onSubmit: (body: { name: string; durationMinutes: number }) => void;
 }) {
   const [name, setName] = useState("");
@@ -274,10 +280,10 @@ function ServiceForm({
         setName("");
       }}
     >
-      <label htmlFor="service-name">Service name</label>
+      <label htmlFor="service-name">{strings.setupServiceNameLabel}</label>
       <input id="service-name" value={name} onChange={(event) => setName(event.target.value)} required />
 
-      <label htmlFor="service-duration">Duration (minutes)</label>
+      <label htmlFor="service-duration">{strings.setupServiceDurationLabel}</label>
       <input
         id="service-duration"
         type="number"
@@ -287,7 +293,7 @@ function ServiceForm({
       />
 
       <button type="submit" disabled={disabled}>
-        Add service
+        {strings.setupAddServiceButton}
       </button>
     </form>
   );
@@ -296,10 +302,12 @@ function ServiceForm({
 function WorkingHoursForm({
   configuration,
   disabled,
+  strings,
   onSubmit,
 }: {
   configuration: TenantConfiguration;
   disabled: boolean;
+  strings: ConsoleStrings;
   onSubmit: (body: {
     calendarId: string;
     workerId: string;
@@ -314,11 +322,12 @@ function WorkingHoursForm({
   const [endsAt, setEndsAt] = useState("18:00");
 
   if (configuration.workers.length === 0) {
-    return <p className="muted">Add a worker first - working hours belong to a worker on a calendar.</p>;
+    return <p className="muted">{strings.setupNoWorkersNote}</p>;
   }
 
   const worker = configuration.workers.find((candidate) => candidate.workerId === workerId) ?? configuration.workers[0];
   const calendar = configuration.calendars.find((candidate) => candidate.workerIds.includes(worker.workerId));
+  const days = weekdayNames(strings);
 
   return (
     <form
@@ -330,7 +339,7 @@ function WorkingHoursForm({
         onSubmit({ calendarId: calendar.calendarId, workerId: worker.workerId, dayOfWeek, startsAt, endsAt });
       }}
     >
-      <label htmlFor="hours-worker">Worker</label>
+      <label htmlFor="hours-worker">{strings.workerFieldLabel}</label>
       <select id="hours-worker" value={worker.workerId} onChange={(event) => setWorkerId(event.target.value)}>
         {configuration.workers.map((candidate) => (
           <option key={candidate.workerId} value={candidate.workerId}>
@@ -339,27 +348,25 @@ function WorkingHoursForm({
         ))}
       </select>
 
-      <label htmlFor="hours-day">Day</label>
+      <label htmlFor="hours-day">{strings.dayFieldLabel}</label>
       <select id="hours-day" value={dayOfWeek} onChange={(event) => setDayOfWeek(Number(event.target.value))}>
-        {DAY_NAMES.map((day, index) => (
+        {days.map((day, index) => (
           <option key={day} value={index}>
             {day}
           </option>
         ))}
       </select>
 
-      <label htmlFor="hours-start">Opens</label>
+      <label htmlFor="hours-start">{strings.opensFieldLabel}</label>
       <input id="hours-start" type="time" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} />
 
-      <label htmlFor="hours-end">Closes</label>
+      <label htmlFor="hours-end">{strings.closesFieldLabel}</label>
       <input id="hours-end" type="time" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} />
 
       <button type="submit" disabled={disabled || calendar === undefined}>
-        Add working hours
+        {strings.setupAddWorkingHoursButton}
       </button>
-      {calendar === undefined && (
-        <p className="muted">That worker is not on a calendar yet, so there are no hours to give them.</p>
-      )}
+      {calendar === undefined && <p className="muted">{strings.setupWorkerNotOnCalendarNote}</p>}
     </form>
   );
 }

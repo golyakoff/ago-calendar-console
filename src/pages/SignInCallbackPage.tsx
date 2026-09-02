@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { userManager } from "../auth/userManager.js";
+import { useStrings } from "../i18n/StringsContext.js";
 
 /**
  * Where Keycloak sends the browser back with `?code=&state=`. Completes the PKCE exchange and gets
@@ -12,6 +13,7 @@ import { userManager } from "../auth/userManager.js";
  */
 export function SignInCallbackPage() {
   const navigate = useNavigate();
+  const strings = useStrings();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -26,23 +28,23 @@ export function SignInCallbackPage() {
       })
       .catch((reason: unknown) => {
         if (!cancelled) {
-          setError(reason instanceof Error ? reason.message : "Sign-in did not complete.");
+          setError(reason instanceof Error ? reason.message : strings.signInFailedDefaultError);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [navigate, strings.signInFailedDefaultError]);
 
   if (error !== null) {
     return (
       <section className="panel">
-        <h2>Sign-in did not complete</h2>
+        <h2>{strings.signInFailedTitle}</h2>
         <p className="error">{error}</p>
       </section>
     );
   }
 
-  return <p className="muted">Signing you in…</p>;
+  return <p className="muted">{strings.signingIn}</p>;
 }
