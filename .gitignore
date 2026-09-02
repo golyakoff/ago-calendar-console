@@ -5,3 +5,14 @@ dist/
 # Local, per-developer configuration. None of the values in it are secrets (the OIDC client id is
 # public by design), but the file names one machine's ports and is not the deployment's.
 .env.local
+
+# `15-11`: `.env.ux-gate` is the same exception `.env.production` already is - localhost placeholders,
+# not secrets. See its own header.
+!.env.ux-gate
+
+# `15-11`: `ux-gate/` is source; everything it *produces* is a build artifact. CI publishes the
+# screenshots with `actions/upload-artifact` rather than committing them.
+/ux-gate/screenshots/
+/ux-gate/test-results/
+/ux-gate/playwright-report/
+/ux-gate/blob-report/
