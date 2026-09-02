@@ -44,7 +44,8 @@ body {
 
 nav {
   display: flex;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
 }
 
 nav a {
@@ -79,6 +80,11 @@ main {
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   padding: 1rem 1.25rem;
+  /* `15-12`/#22: a table wider than the panel (long dates, phone numbers, several actions per row)
+     scrolls inside its own panel instead of pushing the whole document wider - content stays
+     reachable by scrolling the panel, which is "restructure", not the `overflow-x: hidden` on a
+     container that would silently discard it. */
+  overflow-x: auto;
 }
 
 .panel h2 {
@@ -96,6 +102,20 @@ form {
 label {
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+/* `15-12`/#23: a `<label>` wrapping a checkbox is the actual clickable target (WCAG 2.5.8), and an
+   unstyled inline label sized to "checkbox + text" alone measured under the 24px minimum here - the
+   configuration page's "published" toggle at ~22px tall, and each role checkbox on the access page
+   at ~20px. `inline-flex` rather than `flex`: this selector also matches a checkbox label used as a
+   direct flex-column child (`CalendarForm`'s own form), where a flex item's outer `inline-flex` is
+   blockified to `flex` automatically and the fix still lands; left as `inline-flex` so the same rule
+   also works for the access page's several role labels sitting side by side in one table cell. */
+label:has(> input[type="checkbox"]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 24px;
 }
 
 input,
