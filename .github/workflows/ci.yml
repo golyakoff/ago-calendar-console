@@ -81,7 +81,78 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  # There is deliberately no publish-images job yet. `ago-console` has one because something deploys
-  # its image; nothing deploys this one, and a job that pushed an image nobody pulls would be
-  # ceremony that looks like infrastructure. It arrives with the deployment, modelled on
-  # `ago-console`'s (`adr/0047`/`adr/0051`).
+  # `20-20`: this job did not exist until 2026-09-02, and the comment that stood here said why - "a
+  # job that pushed an image nobody pulls would be ceremony that looks like infrastructure. It
+  # arrives with the deployment." The deployment is now arriving, so it has arrived. Modelled on
+  # `ago-console`'s own job, itself modelled on `ago-chat`'s (`adr/0047`/`adr/0051`).
+  publish-images:
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # A repository's own GITHUB_TOKEN can write to that repository's own package feed, so this
+      # needs no new secret. Only *reading* a private package would, which is why `adr/0047` wants
+      # these public.
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # No docker/login-action: `docker login` with the workflow token does the same thing with one
+      # fewer third-party action in the supply chain.
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # Note what is NOT passed: no VITE_* build arg of any kind. The bundle's configuration comes
+      # from the committed `.env.production`, so this image is a function of the commit alone - which
+      # is the only thing that lets ${{ github.sha }} be a truthful name for it (`adr/0051`).
+      # `main` moves and exists only for convenience; there is deliberately no `latest`.
+      - name: Build the console image
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/${{ github.repository_owner }}/ago-calendar-console"
+          docker build \
+            --build-arg "GIT_COMMIT=${{ github.sha }}" \
+            -t "${repo}:${{ github.sha }}" \
+            -t "${repo}:main" \
+            .
+
+      # Proves the commit reached the served files, not merely the tag. The Dockerfile already writes
+      # version.json; this reads it back out of the built image. A published image that cannot name
+      # its own commit is the 2026-08-25 failure with extra steps.
+      - name: Check the image can name its own commit
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/${{ github.repository_owner }}/ago-calendar-console"
+          served=$(docker run --rm --entrypoint cat "${repo}:${{ github.sha }}" /usr/share/nginx/html/version.json)
+          echo "$served"
+          echo "$served" | grep -q '"commit":"${{ github.sha }}"'
+
+      # Before push, not after: it only ever needed the local image (`17-04`). Trivy is pinned by
+      # digest rather than trusted at a floating tag - both its tags and its Docker Hub image were
+      # compromised in March 2026.
+      - name: Scan image for known vulnerabilities (Trivy)
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/${{ github.repository_owner }}/ago-calendar-console"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 \
+            image --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format table \
+            "${repo}:${{ github.sha }}"
+
+      - name: Push
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/${{ github.repository_owner }}/ago-calendar-console"
+          docker push "${repo}:${{ github.sha }}"
+          docker push "${repo}:main"
+
+      - name: Summarise what was published
+        run: |
+          {
+            echo "### Image published"
+            echo
+            echo "- \`ghcr.io/${{ github.repository_owner }}/ago-calendar-console:${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
