@@ -54,18 +54,13 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Rendered UX gate
-        # `15-11`. **Non-blocking on purpose, and this is a dated compromise rather than a setting.**
-        # The gate's first run against this repository found two real things: every one of the eight
-        # screens overflows the viewport at 375px (issue #22) and a handful of controls sit two to
-        # four pixels under WCAG's 24px minimum (issue #23). Neither is caused by this change; both
-        # were simply never measured before. Making the gate blocking today would make every pull
-        # request in this repository red for a defect it did not introduce, which trains people to
-        # ignore a red build - the opposite of what a gate is for.
-        #
-        # A step that always warns is its own hazard, so this is not a steady state: **when #22 and
-        # #23 close, delete this line.** Until then the failures are visible on every run rather than
-        # hidden behind an exemption list, and the screenshots below are produced either way.
-        continue-on-error: true
+        # `15-11` made this step non-blocking on purpose, as a dated compromise rather than a setting:
+        # its first run found two real, pre-existing defects - every screen overflowing at 375px
+        # (#22) and a handful of controls under WCAG's 24px minimum (#23) - and making the gate
+        # blocking with those open would have reddened every pull request for a defect it did not
+        # introduce. `15-12` fixed both (six `<NavLink>`s that did not wrap, a table wider than its
+        # panel, and two checkbox `<label>`s sized to their own unstyled content) and removed the
+        # `continue-on-error: true` that stood here - this step now fails the build like any other.
         run: npm run ux-gate
 
       - name: Upload UX gate screenshots
