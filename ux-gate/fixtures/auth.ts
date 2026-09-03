@@ -49,6 +49,12 @@ export async function signInAsSeededOperator(page: Page): Promise<void> {
     profile: {
       sub: OPERATOR_SUB,
       email: "ux-gate-operator@example.invalid",
+      // `11-19`: `AuthProvider.tsx`'s own `displayName` reads `preferred_username ?? name` - with
+      // neither set, the shell header's identity span rendered nothing at all, which happened to be
+      // harmless for the fourth gate assertion (no text node, no violation) but left the screenshots
+      // less honest than they could be about what an operator actually sees. Cyrillic, the same
+      // reasoning as every other fixture value `ux-gate/fixtures/data.ts` seeds.
+      preferred_username: "Иванова Анна",
     },
     expires_at: Math.floor(expiresAtMs / 1000),
   };

@@ -25,13 +25,18 @@ export const ROLE_ID = "99999999-9999-4999-8999-999999999999";
 export const SEED_DATE = "2026-09-07";
 
 export const CONFIGURATION = {
-  tenantName: "UX Gate Salon",
+  // `11-19` (`ago-root#350`): every free-text value here is Cyrillic, on purpose - the fourth gate
+  // assertion's own precondition (`ux-gate/lib/i18nCompleteness.ts`'s own header). `publicKey` stays
+  // as-is: a site key is a technical identifier rendered only inside `<pre>` (the install snippet),
+  // exempt by tag regardless of script. `timeZone` stays as-is too: an IANA zone id is Latin-script by
+  // the standard itself, named explicitly in that same file's exemption list.
+  tenantName: "Салон «Тестовые ворота»",
   publicKey: "uxgate-public-key-0000",
   allowedOrigins: ["https://shop.example.invalid"],
   calendars: [
     {
       calendarId: CALENDAR_ID,
-      name: "Main room",
+      name: "Основной зал",
       timeZone: "Europe/Moscow",
       isPublished: true,
       workerIds: [WORKER_ID, SECOND_WORKER_ID],
@@ -124,16 +129,25 @@ export const CONTACTS = [
     phone: "+7 900 000-00-00",
     displayName: "Смирнова О. И.",
     notes: null,
-    bookingsTotal: 4,
-    bookingsConfirmed: 3,
-    bookingsCancelled: 1,
     noShowCount: 0,
-    lastBookingAt: `${SEED_DATE}T09:00:00+03:00`,
+    // `11-19`: this fixture had drifted from `Contact`'s own current shape (`calendarApi.ts`) - no
+    // `firstSeenAt`/`lastSeenAt` at all, plus four fields (`bookingsTotal`/`bookingsConfirmed`/
+    // `bookingsCancelled`/`lastBookingAt`) `ContactsPage.tsx` never reads and the interface no longer
+    // declares. `apiStubs.ts` returns fixture bodies as `unknown`, so nothing caught the mismatch at
+    // compile time - `ContactsPage.tsx`'s own `new Date(contact.firstSeenAt)` silently produced
+    // `Invalid Date` (rendered as the literal English words "Invalid Date"), which is exactly how
+    // `ux-gate`'s own fourth assertion (`ago-root#350`) found it: a real, pre-existing fixture defect
+    // this item surfaced as a side effect, not a translation gap. Corrected to the real contract.
+    firstSeenAt: `${SEED_DATE}T09:00:00+03:00`,
+    lastSeenAt: `${SEED_DATE}T09:00:00+03:00`,
   },
 ];
 
 export const ROLES = [
-  { roleId: ROLE_ID, name: "Owner", permissions: ["customer:read", "booking:write", "schedule:write"] },
+  // `11-19`: "Owner" reseeded to Cyrillic, the same reasoning as `CONFIGURATION.tenantName` above - a
+  // role's name is server-held data (`Role.Create` accepts any string), not interface chrome, and the
+  // whole point of seeding every fixture in Cyrillic is that it stays that way regardless.
+  { roleId: ROLE_ID, name: "Владелец", permissions: ["customer:read", "booking:write", "schedule:write"] },
 ];
 
 export const OPERATORS = [

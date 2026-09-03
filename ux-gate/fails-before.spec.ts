@@ -4,6 +4,7 @@ import { UX_GATE_SCREENS } from "./fixtures/screens.js";
 import { measureHorizontalOverflow } from "./lib/overflow.js";
 import { measureUndersizedInteractiveElements } from "./lib/minSize.js";
 import { measureContrastViolations } from "./lib/contrast.js";
+import { measureUntranslatedLatinText } from "./lib/i18nCompleteness.js";
 
 const MIN_INTERACTIVE_SIZE_PX = 24;
 
@@ -22,6 +23,9 @@ const MIN_INTERACTIVE_SIZE_PX = 24;
  * follows is caused by the mutation and not by some other pre-existing violation), applies the
  * mutation, confirms the assertion now fails **with the expected violation in the result**, removes
  * the mutation, and confirms green again on the same page.
+ *
+ * `11-19` (`ago-root#350`) adds a fourth proof, for the fourth gate assertion - same screen, same
+ * discipline.
  */
 // The screen the proofs are staged on. `ago-console` used its conversation view because that was its
 // busiest page; here it is the workers table, for the same reason and one better - it is one of the
@@ -169,5 +173,55 @@ test.describe("fails-before proof", () => {
 
     const after = await page.evaluate(measureContrastViolations);
     expect(after.violations, "expected no contrast violations once the real colours were restored").toEqual([]);
+  });
+
+  /**
+   * `11-19` (`ago-root#350`)'s own fourth assertion, proven the same way as the three above: open the
+   * clean, already Cyrillic-rendered screen, confirm the *injected* defect is absent, inject it via a
+   * post-navigation DOM mutation (never by editing product source, which would change what ships
+   * rather than prove something about the gate), confirm the assertion now reports it **with the
+   * expected violation in the result**, remove the mutation, confirm it is gone again.
+   *
+   * The injected defect is a plain English interface phrase ("Save changes") appended as a real,
+   * visible text node inside a real table row on `PROOF_SCREEN` - the shape a genuine miss looks like:
+   * a label that never went through `useStrings()` and rendered its literal English text on an
+   * otherwise-Russian screen, precisely what `docs/backlog/11-16-*.md` names as the defect this
+   * assertion exists to catch.
+   *
+   * Unlike `ago-console`'s own twin of this proof, `before.violations` **is** asserted empty here -
+   * every real violation this item's own first run found (the origins textarea's URL, the seeded
+   * fixture's leftover English tenant/calendar/role names, the two `ContactsPage` "Invalid Date" cells
+   * from a stale fixture shape, the role permission list) was fixed rather than exempted, so the
+   * `workers` screen genuinely has nothing left to find before this test injects one on purpose - a
+   * stronger proof than "the check ignores its own known gap", not a weaker one.
+   */
+  test("no untranslated interface text: an English label on a Russian screen fails, removing it passes", async ({ page }) => {
+    await openScreen(page, PROOF_SCREEN);
+
+    const before = await page.evaluate(measureUntranslatedLatinText);
+    expect(before.violations, "expected the clean, fully-Cyrillic-seeded page to start with no violations").toEqual([]);
+
+    await page.evaluate(() => {
+      const row = document.querySelector("tbody tr");
+      if (!row) {
+        throw new Error("ux-gate: expected at least one seeded worker row on this screen.");
+      }
+      const defect = document.createElement("span");
+      defect.id = "ux-gate-i18n-defect";
+      defect.textContent = "Save changes";
+      row.appendChild(defect);
+    });
+
+    const during = await page.evaluate(measureUntranslatedLatinText);
+    const defectViolation = during.violations.find((v) => v.selector.includes("ux-gate-i18n-defect"));
+    expect(defectViolation, JSON.stringify(during.violations, null, 2)).toBeTruthy();
+    expect(defectViolation?.latinRuns).toContain("Save");
+
+    await page.evaluate(() => {
+      document.getElementById("ux-gate-i18n-defect")?.remove();
+    });
+
+    const after = await page.evaluate(measureUntranslatedLatinText);
+    expect(after.violations, "expected no violations once the defect span was removed").toEqual([]);
   });
 });

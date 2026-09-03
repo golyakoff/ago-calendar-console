@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { WorkerDetail } from "../api/calendarApi.js";
 import { useStrings } from "../i18n/StringsContext.js";
+import { formatDateTime } from "../i18n/format.js";
 
 /**
  * `20-13`: the one table of every worker the tenant has - display name, activity, created, updated.
@@ -49,8 +50,8 @@ export function WorkersTable({ workers, renderRowActions }: WorkersTableProps) {
               )}
             </td>
             <td>{worker.isActive ? strings.activeLabel : strings.inactiveLabel}</td>
-            <td>{formatDate(worker.createdAt)}</td>
-            <td>{formatDate(worker.updatedAt)}</td>
+            <td>{formatDateTime(worker.createdAt, strings)}</td>
+            <td>{formatDateTime(worker.updatedAt, strings)}</td>
             <td>{renderRowActions(worker)}</td>
           </tr>
         ))}
@@ -59,6 +60,3 @@ export function WorkersTable({ workers, renderRowActions }: WorkersTableProps) {
   );
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString();
-}

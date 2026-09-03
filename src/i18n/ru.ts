@@ -9,6 +9,8 @@ import type { ConsoleStrings } from "./strings.js";
  * (`CLAUDE.md`'s own warning about the platform layer applies to a product layer's own scope creep too).
  */
 export const ru: ConsoleStrings = {
+  intlLocale: "ru-RU",
+
   navQueue: "Очередь",
   navSetup: "Настройка",
   navWorkers: "Сотрудники",

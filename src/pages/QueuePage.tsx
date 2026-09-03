@@ -9,6 +9,7 @@ import {
 } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
 import { useStrings } from "../i18n/StringsContext.js";
+import { formatDateTime, formatTime } from "../i18n/format.js";
 
 /**
  * The shared pending-bookings queue (`20-04`), and the three transitions an operator can make on it.
@@ -117,9 +118,9 @@ export function QueuePage() {
                     "when" is the run's own whole span - startsAt to endsAt - not just its first
                     slot's own start. */}
                 <td>
-                  {new Date(row.startsAt).toLocaleString()}
+                  {formatDateTime(row.startsAt, strings)}
                   {" – "}
-                  {new Date(row.endsAt).toLocaleTimeString()}
+                  {formatTime(row.endsAt, strings)}
                 </td>
                 <td>
                   <code>{row.calendarId.slice(0, 8)}</code>
@@ -137,7 +138,7 @@ export function QueuePage() {
                   )}
                 </td>
                 <td>
-                  {new Date(row.confirmationDeadline).toLocaleString()}
+                  {formatDateTime(row.confirmationDeadline, strings)}
                   {row.isOverdue && <strong>{strings.queueOverdueNote}</strong>}
                 </td>
                 <td>

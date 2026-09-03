@@ -6,6 +6,7 @@ import { UX_GATE_SCREENS } from "./fixtures/screens.js";
 import { measureHorizontalOverflow } from "./lib/overflow.js";
 import { measureUndersizedInteractiveElements } from "./lib/minSize.js";
 import { measureContrastViolations } from "./lib/contrast.js";
+import { measureUntranslatedLatinText } from "./lib/i18nCompleteness.js";
 
 /** `ux-gate/lib/minSize.ts`'s own doc comment has the full justification - WCAG 2.2's 2.5.8 Target
  * Size (Minimum), checked against this repository's own smallest legitimate control (32px) and a
@@ -20,9 +21,16 @@ const SCREENSHOTS_DIR = fileURLToPath(new URL("./screenshots/", import.meta.url)
  * than it would in an ordinary UI test because opening it is not free (a seeded sign-in, a full REST
  * fixture set and, for the conversation screen, a mocked SignalR handshake).
  *
- * The screenshot is taken **before** the three assertions run, deliberately - a failing assertion
+ * The screenshot is taken **before** the four assertions run, deliberately - a failing assertion
  * still leaves the picture that shows *why* in the CI artifact, which is the more useful failure mode
- * for a human looking at a red build than three failed `expect`s and nothing to look at.
+ * for a human looking at a red build than a failed `expect` and nothing to look at.
+ *
+ * `11-19` (`ago-root#350`) adds a fourth: every fixture this gate seeds is Cyrillic
+ * (`ux-gate/fixtures/data.ts`), so the whole console renders in Russian for every one of these runs -
+ * not a separate locale variant of the same test, the same run that already produces the other three
+ * assertions and the screenshot. Unlike `ago-console`'s twin, this console has no `/owner`-equivalent
+ * screen seen by only one person in a fixed language, so all eight screens run all four assertions -
+ * no screen-level skip.
  */
 for (const screen of UX_GATE_SCREENS) {
   test(screen.name, async ({ page }) => {
@@ -63,6 +71,11 @@ for (const screen of UX_GATE_SCREENS) {
 
     await test.step("WCAG AA contrast", async () => {
       const result = await page.evaluate(measureContrastViolations);
+      expect(result.violations, JSON.stringify(result.violations, null, 2)).toEqual([]);
+    });
+
+    await test.step("no untranslated interface text", async () => {
+      const result = await page.evaluate(measureUntranslatedLatinText);
       expect(result.violations, JSON.stringify(result.violations, null, 2)).toEqual([]);
     });
   });
