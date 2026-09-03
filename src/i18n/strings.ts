@@ -22,6 +22,17 @@
  * value that reads as a sentence, which is exactly the bug this item exists to fix.
  */
 export interface ConsoleStrings {
+  /** `11-19`: the BCP-47 tag driving every `Intl`/`toLocaleString` call in this bundle
+   * (`i18n/format.tsx`'s own `formatDateTime`/`formatTime`/`formatDate`) - not interface chrome
+   * itself (nothing here is displayed), but the one piece of locale metadata every raw date-
+   * formatting call in this codebase was missing before this item, which is exactly how a Russian
+   * screen ended up showing an English "AM"/"PM" marker (`WorkersTable.tsx`'s `formatDate`,
+   * `QueuePage.tsx`'s inline calls, both found by running `ux-gate`'s own fourth assertion for real).
+   * Lives on this table, alongside the strings it formats around, rather than as a second lookup
+   * keyed off `SupportedLocale` separately - one place per locale, the same discipline `resolve.ts`'s
+   * own `getStrings` already established. */
+  intlLocale: string;
+
   // --- Shell (App.tsx) ---
   navQueue: string;
   navSetup: string;

@@ -3,6 +3,7 @@ import { useAuth } from "../auth/AuthContext.js";
 import { getContacts, type Contact } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
 import { useStrings } from "../i18n/StringsContext.js";
+import { formatDate } from "../i18n/format.js";
 
 /**
  * `20-12`'s own new kind of screen: every customer lead card the tenant holds, in one plain table -
@@ -74,8 +75,8 @@ export function ContactsPage() {
                 <td>{contact.displayName ?? <span className="muted">{strings.notRecordedLabel}</span>}</td>
                 <td>{contact.notes ?? <span className="muted">—</span>}</td>
                 <td>{contact.noShowCount}</td>
-                <td>{new Date(contact.firstSeenAt).toLocaleDateString()}</td>
-                <td>{new Date(contact.lastSeenAt).toLocaleDateString()}</td>
+                <td>{formatDate(contact.firstSeenAt, strings)}</td>
+                <td>{formatDate(contact.lastSeenAt, strings)}</td>
               </tr>
             ))}
           </tbody>

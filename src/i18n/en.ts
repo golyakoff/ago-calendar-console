@@ -8,6 +8,8 @@ import type { ConsoleStrings } from "./strings.js";
  * always rendered.
  */
 export const en: ConsoleStrings = {
+  intlLocale: "en-GB",
+
   navQueue: "Queue",
   navSetup: "Setup",
   navWorkers: "Workers",

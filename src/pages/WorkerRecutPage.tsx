@@ -11,7 +11,7 @@ import {
   type RecutResult,
 } from "../api/calendarApi.js";
 import { errorMessage } from "./errorMessage.js";
-import { renderCustomer, renderPhone, slotStatusLabel } from "../i18n/format.js";
+import { formatDateTime, formatTime, renderCustomer, renderPhone, slotStatusLabel } from "../i18n/format.js";
 import { useStrings } from "../i18n/StringsContext.js";
 import type { ConsoleStrings } from "../i18n/strings.js";
 
@@ -297,7 +297,7 @@ function RecutBookingRow({
           screen-reader and a query alike can address "the customer's name" as one thing rather than
           having to parse it back out of a sentence. */}
       <span>
-        {new Date(booking.startsAt).toLocaleString()} – {new Date(booking.endsAt).toLocaleTimeString()}
+        {formatDateTime(booking.startsAt, strings)} – {formatTime(booking.endsAt, strings)}
       </span>{" "}
       <span>{booking.serviceName ?? <span className="muted">—</span>}</span>{" "}
       <span>{renderCustomer(booking, strings)}</span>{" "}

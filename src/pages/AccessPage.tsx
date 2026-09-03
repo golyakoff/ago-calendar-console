@@ -147,7 +147,12 @@ export function AccessPage() {
         <ul>
           {roles.map((role) => (
             <li key={role.roleId}>
-              <strong>{role.name}</strong> · {role.permissions.join(", ")}
+              {/* `11-19`: `<code>` - the same convention `QueuePage.tsx`'s truncated calendar id
+                  already uses - marks this join as the technical wire scope strings it is
+                  ("customer:read", "booking:write"), never translated prose, the same "server-
+                  assigned status enum's own wire value" category `strings.ts`'s own header names for
+                  a permission's own identifier. */}
+              <strong>{role.name}</strong> · <code>{role.permissions.join(", ")}</code>
             </li>
           ))}
         </ul>
