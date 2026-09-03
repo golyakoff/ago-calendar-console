@@ -1,55 +1,62 @@
-# ago-calendar-console
+# ago-calendar-console (retired)
 
-AGO Calendar's operator console: tenant setup, the shared pending-bookings queue, and the two manual
-availability edits. A React + Vite SPA talking to `Ago.Calendar.Api`.
+This repository has been retired. It held AGO Calendar's operator console — tenant setup, the shared
+pending-bookings queue, workers and their schedules, availability edits, the contacts report, and
+access control — a React + Vite SPA talking to `Ago.Calendar.Api`.
 
-Part of the [AGO Platform](https://github.com/golyakoff/ago-root) project. The rules, decisions and
-backlog live in `ago-root`; this repository holds only this bundle.
+## Where the screens went
 
-## Why this is its own repository and not a page in `ago-console`
+The six screens moved into [`ago-console`](https://github.com/golyakoff/ago-console), gated by the
+`calendar:configure` permission, under `/calendar`:
 
-Decided in `ago-root/docs/adr/0064`, by `repositories.md`'s own test — **a thing gets its own
-repository when it versions or deploys independently.** This bundle tracks `Ago.Calendar.Api`'s
-contract; `ago-console` tracks `Ago.Chat.Api`'s. They are two products with two databases, two
-release cadences and two images, and one shared bundle would mean a calendar change rebuilding and
-redeploying the chat console.
+| Screen | Was here | Now in `ago-console` |
+|---|---|---|
+| Queue | `src/pages/QueuePage.tsx` | `src/pages/CalendarQueuePage.tsx` |
+| Setup | `src/pages/ConfigurationPage.tsx` | `src/pages/CalendarSetupPage.tsx` |
+| Workers | `src/pages/WorkersPage.tsx` | `src/pages/CalendarWorkersPage.tsx` |
+| Availability | `src/pages/AvailabilityPage.tsx` | `src/pages/CalendarAvailabilityPage.tsx` |
+| Contacts | `src/pages/ContactsPage.tsx` | `src/pages/CalendarContactsPage.tsx` |
+| Access | `src/pages/AccessPage.tsx` | `src/pages/CalendarAccessPage.tsx` |
 
-The decision has a real cost and the ADR states it rather than hiding it: the OIDC plumbing here
-(`src/auth/`) is `ago-console`'s, copied. That is the second time this project has accepted a
-duplication of that kind — `adr/0027` accepted the first, in the claims transformation — and it is
-recorded as a cost, not a coincidence.
+Two drill-down routes moved with them: a worker's materialised slots
+(`WorkerSlotsPage.tsx` → `CalendarWorkerSlotsPage.tsx`) and the schedule re-cut screen
+(`WorkerRecutPage.tsx` → `CalendarWorkerRecutPage.tsx`), both reachable only from the Workers screen,
+neither with a navigation entry of its own — unchanged from how they worked here.
 
-**The framework is not a new decision.** `adr/0023` chose React for `ago-console`; this reuses it
-unchanged, and `20-06` says explicitly that it is not re-litigating that choice.
+Every screen was rewritten against `ago-console`'s own closed set of eleven UI components
+(`adr/0030`) rather than carried over as bare-HTML markup, and every screen's tests moved with it.
+The API client (`src/api/calendarApi.ts`), the i18n catalogue (English and Russian), and the
+`ux-gate` accessibility/i18n-completeness gate all moved and merged into `ago-console`'s own
+equivalents.
 
-## Running it
+**`Ago.Calendar.Api` itself did not move and did not change.** The console merged; the API did not —
+it keeps its own repository, its own database, and its own deployment
+(`calendar-api.reserve-me.ru`). `ago-console` talks to it through its own second API origin
+(`VITE_CALENDAR_API_BASE_URL`), the same shape `ago-console` already used for `ago-faq`'s backend.
 
-```bash
-cd ago-calendar-console
-cp .env.example .env.local     # nothing in it is a secret; see the file's own comments
-npm install
-npm run dev
-```
+## Why
 
-It needs `Ago.Calendar.Api` running and reachable at `VITE_API_BASE_URL`, and its origin listed in
-that API's `Operator:ConsoleOrigins` — the console's origin is *configuration*, deliberately not
-something a tenant can add to its own allowed-origins list. See
-`ago-root/docs/runbooks/local-dev.md`.
+`docs/adr/0093-tenancy-and-identity-unify-domains-stay-apart.md` (`ago-root`) is the decision: domains
+stay apart, but tenancy, identity, the role catalogue and the console unify across products. A
+product's screens now live in `ago-console`, permission-gated, talking to that product's own API
+origin — the shape `ago-faq` already shipped, generalised here to AGO Calendar. `docs/adr/0064`
+recorded this repository's own reason for existing in the first place — a thing gets its own
+repository when it versions or deploys independently — and that reasoning never applied to the
+*console*, only to the fact that two products have two APIs. Bare product names retired from the
+console's own hostname scheme at the same time (`adr/0091`); `office.reserve-me.ru` is now the one
+console for every product.
 
-```bash
-npm run typecheck
-npm run lint
-npm test
-npm run build
-```
+Carried out by `docs/backlog/22-06-one-console.md` (`ago-root#371`).
 
-## What is deliberately not here
+## What is left here, and why
 
-- **No `.env.production`.** AGO Calendar has no deployment, and committing one would mean inventing
-  an API origin and a Keycloak issuer for a cluster that does not run this product. The Dockerfile
-  says the same thing at more length, including why `adr/0051` forbids solving it with a build
-  argument.
-- **No image publish in CI.** Nothing deploys this image yet. A job that pushed one nobody pulls
-  would be ceremony that looks like infrastructure.
-- **No delete, anywhere.** Workers, calendars and services are deactivated or unpublished, never
-  removed: a booked history is what a customer's lead card is for.
+Only this file and `LICENSE`. Every application source file, build and deploy config
+(`package.json`, `vite.config.ts`, `tsconfig*.json`, `Dockerfile`, `nginx.conf`, `eslint.config.js`,
+`index.html`), CI workflow and Dependabot config has been removed — there is nothing left to build,
+test, lint or deploy, and keeping any of it would only invite someone to run a command against a
+repository that no longer does anything.
+
+**This repository has not been archived.** Archiving is a GitHub setting only the repository's owner
+can set, and stripping the source is the reversible half of retiring it — the git history, every past
+commit and this repository's own identity are untouched. Archiving it (or deleting it, should that
+ever be wanted) is the author's own action to take, not this change's.
