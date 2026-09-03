@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext.js";
 import { RequireAuth } from "./auth/RequireAuth.js";
@@ -12,6 +13,8 @@ import { WorkerRecutPage } from "./pages/WorkerRecutPage.js";
 import { SignInCallbackPage } from "./pages/SignInCallbackPage.js";
 import { getStrings, resolveConsoleLocale } from "./i18n/resolve.js";
 import { StringsProvider, useStrings } from "./i18n/StringsContext.js";
+import { buildNavItems } from "./nav/navItems.js";
+import { NavDrawer } from "./nav/NavDrawer.js";
 
 /**
  * <b>AGO Calendar's console, and deliberately not a page inside AGO Chat's.</b> `adr/0064` records
@@ -39,20 +42,36 @@ export function App() {
 function AppShell() {
   const { accessToken, displayName, signOut } = useAuth();
   const strings = useStrings();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // `11-14`: one array, two renderers - the bar below and `NavDrawer` both map over this same call's
+  // result in the same render, rather than each keeping its own list of six items.
+  const navItems = buildNavItems(strings);
 
   return (
     <div className="shell">
       <header>
         <h1>AGO Calendar</h1>
         {accessToken !== null && (
-          <nav>
-            <NavLink to="/">{strings.navQueue}</NavLink>
-            <NavLink to="/setup">{strings.navSetup}</NavLink>
-            <NavLink to="/workers">{strings.navWorkers}</NavLink>
-            <NavLink to="/availability">{strings.navAvailability}</NavLink>
-            <NavLink to="/contacts">{strings.navContacts}</NavLink>
-            <NavLink to="/access">{strings.navAccess}</NavLink>
-          </nav>
+          <>
+            <button
+              type="button"
+              className="nav-hamburger"
+              aria-label={strings.navMenuLabel}
+              aria-haspopup="dialog"
+              aria-expanded={drawerOpen}
+              onClick={() => setDrawerOpen(true)}
+            >
+              <span aria-hidden="true">☰</span>
+            </button>
+            <nav className="top-nav">
+              {navItems.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.end}>
+                  {item.label}
+                </NavLink>
+              ))}
+            </nav>
+          </>
         )}
         {accessToken !== null && (
           <div className="identity">
@@ -63,6 +82,15 @@ function AppShell() {
           </div>
         )}
       </header>
+
+      {accessToken !== null && (
+        <NavDrawer
+          open={drawerOpen}
+          items={navItems}
+          label={strings.navMenuLabel}
+          onClose={() => setDrawerOpen(false)}
+        />
+      )}
 
       <main>
         <Routes>

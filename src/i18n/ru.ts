@@ -16,6 +16,7 @@ export const ru: ConsoleStrings = {
   navContacts: "Клиенты",
   navAccess: "Доступ",
   signOut: "Выйти",
+  navMenuLabel: "Меню навигации",
 
   checkingSession: "Проверка вашей сессии…",
   signInTitle: "Вход",
