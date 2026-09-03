@@ -15,6 +15,7 @@ export const en: ConsoleStrings = {
   navContacts: "Contacts",
   navAccess: "Access",
   signOut: "Sign out",
+  navMenuLabel: "Navigation menu",
 
   checkingSession: "Checking your session…",
   signInTitle: "Sign in",

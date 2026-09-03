@@ -30,6 +30,10 @@ export interface ConsoleStrings {
   navContacts: string;
   navAccess: string;
   signOut: string;
+  /** `11-14`: the hamburger button's own accessible name at mobile widths, reused as `NavDrawer`'s
+   * `aria-label` too - the button says what it opens, the dialog it opens says what it is, and today
+   * that is the same phrase for both. */
+  navMenuLabel: string;
 
   // --- Auth (RequireAuth.tsx / SignInCallbackPage.tsx) ---
   checkingSession: string;

@@ -42,7 +42,11 @@ body {
   margin: 0;
 }
 
-nav {
+/* `11-14`: renamed from a bare `nav` selector to `nav.top-nav` so it scopes to the desktop/tablet bar
+   only, now that a second `<nav>` exists inside `NavDrawer` with its own column layout below - same
+   flex-wrap/gap declarations `15-12` gave this rule, still doing the same job at whatever width shows
+   the bar rather than the drawer. */
+nav.top-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
@@ -56,6 +60,64 @@ nav a {
 nav a.active {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* `11-14`: hidden by default - only shown below the mobile breakpoint, in the `@media` block at the
+   end of this file. Same 40rem cutoff `ago-console/src/shell/shell.css` uses for its own mobile
+   switch - not shared code, just the same convention re-used deliberately across the two consoles. */
+.nav-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* `11-14`: the drawer itself. A native `<dialog>`, positioned as a left-hand panel rather than the
+   browser's own centred default - `NavDrawer.tsx`'s own doc comment has the accessibility reasoning
+   for using `<dialog>` at all. */
+.nav-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  margin: 0;
+  border: none;
+  border-right: 1px solid var(--line);
+  width: 16rem;
+  max-width: 80vw;
+  height: 100%;
+  max-height: 100vh;
+  padding: 1.25rem 1rem;
+  background: #fff;
+}
+
+.nav-drawer::backdrop {
+  background: rgb(20 24 31 / 0.4);
+}
+
+.nav-drawer__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav-drawer__list a {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0.6rem 0.5rem;
+  border-radius: 0.4rem;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.nav-drawer__list a.active {
+  background: #eef3fe;
 }
 
 .identity {
@@ -194,4 +256,17 @@ pre {
 fieldset {
   border: 1px solid var(--line);
   border-radius: 0.4rem;
+}
+
+/* `11-14`: below this width, the drawer replaces the bar rather than sitting alongside it - `15-12`'s
+   `nav.top-nav` wrap still does its job above this cutoff (a tablet width, or a future seventh item),
+   so it is kept rather than deleted. */
+@media (max-width: 40rem) {
+  .nav-hamburger {
+    display: inline-flex;
+  }
+
+  nav.top-nav {
+    display: none;
+  }
 }
